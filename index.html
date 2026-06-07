@@ -1128,9 +1128,112 @@ function renderMemoryArea() {
   }
 }
 
+// ============================================================
+// MEMORY — LOCAL FALLBACK THEME EXTRACTOR
+// ============================================================
+
+/**
+ * ローカルフォールバック用テーマ抽出
+ * キーワードマッチングで記録からテーマを生成・統合する
+ */
+const LOCAL_THEME_MAP = [
+  { keys: ['ミャンマー','mpants','民族衣装','パンツ','ズボン'], theme: 'ミャンマーパンツ' },
+  { keys: ['遠州織','和織','反物','布','染め','着物','縫い','刺繍','綿'], theme: '日本の伝統布' },
+  { keys: ['認知症','物忘れ','介護','高齢','記憶障害','認知'], theme: '認知症支援' },
+  { keys: ['AI','Gemini','ChatGPT','GPT','LLM','生成AI','人工知能'], theme: 'AIと人の関係' },
+  { keys: ['映画','cinema','Netflix','アニメ','ドラマ'], theme: '映画・映像' },
+  { keys: ['音楽','くるり','K-pop','kpop','spotify','プレイリスト','ライブ','コンサート','バンド','ジャズ','Jazz'], theme: '音楽' },
+  { keys: ['Web3','blockchain','ブロックチェーン','NFT','暗号資産','crypto','DeFi'], theme: 'Web3・ブロックチェーン' },
+  { keys: ['旅行','旅','海外','観光','ホテル','フライト','トリップ'], theme: '旅・旅行' },
+  { keys: ['カフェ','コーヒー','お茶','ティー','喫茶'], theme: 'カフェ・コーヒー' },
+  { keys: ['本','読書','漫画','小説','書籍'], theme: '読書・本' },
+  { keys: ['健康','運動','ヨガ','ジム','ウォーキング','食事','栄養'], theme: '健康・ウェルネス' },
+  { keys: ['プログラミング','コード','開発','エンジニア','アプリ','web','html','css','javascript'], theme: 'プログラミング・開発' },
+  { keys: ['友達','友人','会った','ランチ','飲み','集まり'], theme: '人とのつながり' },
+  { keys: ['食べ物','料理','レストラン','グルメ','食','レシピ'], theme: '食・料理' },
+  { keys: ['写真','カメラ','撮影','フォト'], theme: '写真・カメラ' },
+];
+
+/**
+ * テキスト（メモ+URL）からマッチするテーマキーを抽出する
+ */
+function extractThemeKeysFromText(text) {
+  const lower = text.toLowerCase();
+  const matched = [];
+  for (const group of LOCAL_THEME_MAP) {
+    for (const kw of group.keys) {
+      if (lower.includes(kw.toLowerCase())) {
+        matched.push(group.theme);
+        break;
+      }
+    }
+  }
+  return matched;
+}
+
+/**
+ * ローカルフォールバック：記録からテーマを抽出し、既存メモリーと統合する
+ * - 重複排除
+ * - 類似テーマのマージ（LOCAL_THEME_MAPで同一グループにまとめる）
+ * - 最大20件
+ * - strength付与（登場回数ベース）
+ * - relatedEntryIds付与
+ */
+function buildLocalThemesFromEntries(currentMemory, allRecords) {
+  // テーマ名 → { strength, relatedEntryIds } のマップ
+  const themeMap = {};
+
+  // 既存メモリーを取り込む（strength維持）
+  const safeMemory = Array.isArray(currentMemory) ? currentMemory : [];
+  for (const item of safeMemory) {
+    if (item && item.theme) {
+      themeMap[item.theme] = {
+        strength: item.strength || 1,
+        relatedEntryIds: Array.isArray(item.relatedEntryIds) ? [...item.relatedEntryIds] : []
+      };
+    }
+  }
+
+  // 直近20件の記録からテーマを抽出
+  const safeRecords = Array.isArray(allRecords) ? allRecords.slice(0, 20) : [];
+  for (const r of safeRecords) {
+    const text = ((r.memo || '') + ' ' + (r.url || '')).trim();
+    if (!text) continue;
+
+    const themes = extractThemeKeysFromText(text);
+    for (const theme of themes) {
+      if (themeMap[theme]) {
+        // 既存テーマのstrengthを加算、relatedEntryIdsに追加
+        themeMap[theme].strength = Math.min(5, (themeMap[theme].strength || 1) + 0.5);
+        if (r.id && !themeMap[theme].relatedEntryIds.includes(r.id)) {
+          themeMap[theme].relatedEntryIds.push(r.id);
+        }
+      } else {
+        themeMap[theme] = {
+          strength: 1,
+          relatedEntryIds: r.id ? [r.id] : []
+        };
+      }
+    }
+  }
+
+  // マップをthemes配列に変換、strength降順ソート、最大20件
+  const themes = Object.entries(themeMap)
+    .map(([theme, data]) => ({
+      theme,
+      strength: Math.round(data.strength * 10) / 10,
+      relatedEntryIds: data.relatedEntryIds
+    }))
+    .sort((a, b) => b.strength - a.strength)
+    .slice(0, 20);
+
+  return themes;
+}
+
 /**
  * 「🧠 記憶を整理する」ボタン押下時
- * 直近10件の記録 + 現在のメモリーをAPIに渡して再整理する
+ * file:// 環境：ローカルフォールバックでテーマ整理
+ * Vercel公開後：/api/organize-memory にPOSTしてGeminiで整理
  */
 async function organizeMemory() {
   const btn = document.getElementById('btn-organize-memory');
@@ -1144,28 +1247,53 @@ async function organizeMemory() {
 
   const recentEntries = allRecords
     .slice(0, 10)
-    .map(r => ({ date: r.date, memo: r.memo, url: r.url }));
+    .map(r => ({ date: r.date, memo: r.memo, url: r.url, id: r.id }));
 
+  // file:// かどうかを判定
+  const isFileProtocol = window.location.protocol === 'file:';
+
+  // ── file:// 以外（Vercel等）ではAPIを試みる ──────────────────
+  if (!isFileProtocol) {
+    try {
+      const res = await fetch('/api/organize-memory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentMemory, recentEntries })
+      });
+
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+
+      if (Array.isArray(data.themes) && data.themes.length > 0) {
+        saveMemory(data.themes);
+        renderMemoryArea();
+        showToast('🧠 記憶を整理しました（' + data.themes.length + '件）');
+        btn.disabled = false;
+        btn.textContent = '🧠 記憶を整理する';
+        return;
+      }
+      // themes が空の場合はローカルフォールバックへ
+    } catch (err) {
+      console.warn('[organizeMemory] API呼び出し失敗、ローカルフォールバックへ:', err.message || err);
+      // ローカルフォールバックへ続行
+    }
+  }
+
+  // ── ローカルフォールバック（file:// または APIエラー時） ────────
   try {
-    const res = await fetch('/api/organize-memory', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ currentMemory, recentEntries })
-    });
+    const themes = buildLocalThemesFromEntries(currentMemory, allRecords);
 
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-
-    if (Array.isArray(data.themes) && data.themes.length > 0) {
-      saveMemory(data.themes);
+    if (themes.length > 0) {
+      saveMemory(themes);
       renderMemoryArea();
-      showToast('🧠 記憶を整理しました（' + data.themes.length + '件）');
+      const label = isFileProtocol ? '（ローカル整理）' : '（ローカルフォールバック）';
+      showToast('🧠 記憶を整理しました' + label + '（' + themes.length + '件）');
     } else {
       showToast('テーマが見つかりませんでした。記録を追加してから試してください。');
     }
-  } catch (err) {
-    console.warn('organize-memory error:', err.message || err);
-    showToast('整理に失敗しました。しばらくしてから再試行してください。');
+  } catch (fallbackErr) {
+    console.error('[organizeMemory] ローカルフォールバックも失敗:', fallbackErr);
+    showToast('整理に失敗しました。記録を追加してから再試行してください。');
   } finally {
     btn.disabled = false;
     btn.textContent = '🧠 記憶を整理する';
