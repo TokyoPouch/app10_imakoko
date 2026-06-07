@@ -599,6 +599,112 @@
 
     /* ===== スクロール ===== */
     .screen { overflow-y: auto; }
+
+    /* ===== 好きの棚パネル ===== */
+    .shelf-panel {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.35s ease, opacity 0.3s ease;
+      opacity: 0;
+      margin: 0 20px;
+    }
+    .shelf-panel.open {
+      max-height: 600px;
+      opacity: 1;
+      margin-bottom: 6px;
+    }
+    .shelf-panel-inner {
+      padding: 10px 0 6px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* 棚（人生テーマ） */
+    .shelf-item {
+      margin-bottom: 16px;
+    }
+    .shelf-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--navy);
+      opacity: 0.6;
+      letter-spacing: 0.03em;
+      margin-bottom: 6px;
+      padding: 0 2px;
+    }
+
+    /* 本（関心テーマ） */
+    .book-list {
+      list-style: none;
+    }
+    .book-item {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 6px 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      margin-bottom: 2px;
+    }
+    .book-item:hover { background: rgba(255,92,147,0.06); }
+    .book-item:active { background: rgba(255,92,147,0.12); }
+    .book-title {
+      font-size: 14px;
+      color: var(--navy);
+      font-weight: 500;
+      letter-spacing: 0.01em;
+    }
+    .book-count {
+      font-size: 14px;
+      color: var(--text-sub);
+      font-weight: 400;
+      margin-left: 12px;
+      flex-shrink: 0;
+    }
+
+    /* 棚区切り */
+    .shelf-item + .shelf-item {
+      padding-top: 6px;
+      border-top: 1px solid rgba(232,221,208,0.5);
+    }
+
+    /* ===== テーマ別タイムライン画面 ===== */
+    .shelf-book-header {
+      background: var(--bg);
+      padding: 14px 20px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .shelf-book-back {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 12px;
+      font-family: 'Noto Sans JP', sans-serif;
+      color: #b0a89e;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      margin-bottom: 6px;
+      transition: color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .shelf-book-back:hover { color: #8a8078; }
+    .shelf-book-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--navy);
+      letter-spacing: -0.3px;
+    }
+    .shelf-book-empty {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--text-sub);
+      font-size: 14px;
+      line-height: 1.8;
+    }
   </style>
 </head>
 <body>
@@ -644,23 +750,18 @@
       </div>
     </header>
 
-    <!-- TIMELINE LABEL + Future Meトグル -->
+    <!-- TIMELINE LABEL + 好きの棚トグル -->
     <div class="section-label-row">
       <span class="section-label">タイムライン</span>
-      <button class="btn-memory-toggle" id="btn-memory-toggle" onclick="toggleMemoryPanel()">
-        Future Meの記憶 ▼
+      <button class="btn-memory-toggle" id="btn-shelf-toggle" onclick="toggleShelfPanel()">
+        好きの棚 ▼
       </button>
     </div>
 
-    <!-- Future Meメモリーアコーディオン（初期：閉じる）-->
-    <div class="memory-panel" id="memory-panel">
-      <div class="memory-panel-inner">
-        <ul class="memory-list" id="memory-list">
-          <li class="memory-empty">まだ記憶がありません。</li>
-        </ul>
-        <button class="btn-organize-memory" id="btn-organize-memory" onclick="organizeMemory()">
-          記憶を更新
-        </button>
+    <!-- 好きの棚アコーディオン（初期：閉じる）-->
+    <div class="shelf-panel" id="shelf-panel">
+      <div class="shelf-panel-inner" id="shelf-panel-inner">
+        <!-- JS で描画 -->
       </div>
     </div>
 
@@ -752,7 +853,22 @@
     </div>
   </div><!-- /screen-record -->
 
+  <!-- ========== SCREEN: SHELF BOOK (テーマ別タイムライン) ========== -->
+  <div id="screen-shelf-book" class="screen">
+    <div class="shelf-book-header">
+      <button class="shelf-book-back" id="shelf-book-back-btn" onclick="goBackToShelf()">
+        ← 好きの棚
+      </button>
+      <div class="shelf-book-title" id="shelf-book-title">テーマ</div>
+    </div>
+    <!-- タイムライン（JS で描画） -->
+    <div class="timeline-wrap" id="shelf-book-timeline">
+      <div class="timeline-line"></div>
+    </div>
+  </div><!-- /screen-shelf-book -->
+
   <!-- ========== SCREEN: SETTINGS ========== -->
+
   <div id="screen-settings" class="screen">
     <div class="settings-header">
       <h2>設定</h2>
@@ -856,7 +972,58 @@
 const STORAGE_KEY  = 'imakoko_records';
 const MEMORY_KEY   = 'futureMeMemory';
 const FEEDBACK_KEY = 'futureMeFeedback';
+const SHELF_KEY    = 'imakokoShelf';
 let photoDataUrl = null;
+let currentBookId = null; // 現在表示中のbook ID
+
+// ============================================================
+// SHELF — DEFAULT DATA
+// ============================================================
+const DEFAULT_SHELF = [
+  {
+    id: 'shelf-1',
+    title: '文化を未来へ残したい',
+    books: [
+      {
+        id: 'book-1',
+        title: '日本の伝統布',
+        keywords: ['遠州織','久留女絣','播州織','反物','着物','伝統布','テキスタイル','染め','綿','刺繍']
+      },
+      {
+        id: 'book-2',
+        title: 'ミャンマーパンツ',
+        keywords: ['ミャンマー','mpants','民族衣装','ビルマ']
+      }
+    ]
+  },
+  {
+    id: 'shelf-2',
+    title: 'AIと人の関係を探求している',
+    books: [
+      {
+        id: 'book-3',
+        title: 'ChatGPT',
+        keywords: ['ChatGPT','GPT','OpenAI','chatgpt','gpt']
+      },
+      {
+        id: 'book-4',
+        title: 'Gemini',
+        keywords: ['Gemini','Google AI','Bard','gemini']
+      }
+    ]
+  },
+  {
+    id: 'shelf-3',
+    title: '忘れることと記憶を考え続けている',
+    books: [
+      {
+        id: 'book-5',
+        title: '認知症支援',
+        keywords: ['認知症','物忘れ','記憶','介護','福祉','ケア','高齢']
+      }
+    ]
+  }
+];
 
 // FutureMeアバター (線画SVG)
 const FUTURE_ME_SVG = `<svg viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1136,23 +1303,231 @@ function generateFutureMe(record) {
 }
 
 // ============================================================
-// MEMORY — RENDER & ORGANIZE
+// SHELF — STORAGE
+// ============================================================
+function loadShelf() {
+  try { return JSON.parse(localStorage.getItem(SHELF_KEY) || 'null'); }
+  catch(e) { return null; }
+}
+function saveShelf(shelf) {
+  try { localStorage.setItem(SHELF_KEY, JSON.stringify(shelf)); return true; }
+  catch(e) { console.error('shelf保存失敗:', e); return false; }
+}
+function getShelf() {
+  return loadShelf() || DEFAULT_SHELF;
+}
+
+// ============================================================
+// SHELF — PANEL TOGGLE
 // ============================================================
 
 /**
- * Future Meの記憶パネルを開閉する
+ * 好きの棚パネルを開閉する
  */
-function toggleMemoryPanel() {
-  const panel  = document.getElementById('memory-panel');
-  const toggle = document.getElementById('btn-memory-toggle');
+function toggleShelfPanel() {
+  const panel  = document.getElementById('shelf-panel');
+  const toggle = document.getElementById('btn-shelf-toggle');
   if (!panel || !toggle) return;
 
   const isOpen = panel.classList.toggle('open');
-  toggle.textContent = isOpen ? 'Future Meの記憶 ▲' : 'Future Meの記憶 ▼';
+  toggle.textContent = isOpen ? '好きの棚 ▲' : '好きの棚 ▼';
 
-  // 開いたときにメモリーを最新状態に更新
-  if (isOpen) renderMemoryArea();
+  if (isOpen) renderShelfPanel();
 }
+
+// ============================================================
+// SHELF — PANEL RENDER
+// ============================================================
+
+/**
+ * 各本の件数を計算する（キーワードマッチ）
+ */
+function countBookPages(book) {
+  const records = loadRecords();
+  return records.filter(r => {
+    const text = ((r.memo || '') + ' ' + (r.url || '')).toLowerCase();
+    return book.keywords.some(kw => text.includes(kw.toLowerCase()));
+  }).length;
+}
+
+/**
+ * 好きの棚パネルを描画する
+ */
+function renderShelfPanel() {
+  const inner = document.getElementById('shelf-panel-inner');
+  if (!inner) return;
+
+  const shelf = getShelf();
+  inner.innerHTML = '';
+
+  if (!shelf || shelf.length === 0) {
+    inner.innerHTML = '<p style="font-size:12px;color:var(--text-sub);padding:4px 2px;">棚がありません。</p>';
+    return;
+  }
+
+  shelf.forEach(shelfItem => {
+    const shelfEl = document.createElement('div');
+    shelfEl.className = 'shelf-item';
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'shelf-title';
+    titleEl.textContent = shelfItem.title;
+    shelfEl.appendChild(titleEl);
+
+    const bookList = document.createElement('ul');
+    bookList.className = 'book-list';
+
+    (shelfItem.books || []).forEach(book => {
+      const count = countBookPages(book);
+      const li = document.createElement('li');
+      li.className = 'book-item';
+      li.setAttribute('role', 'button');
+      li.setAttribute('tabindex', '0');
+      li.setAttribute('aria-label', book.title + ' ' + count + '件');
+      li.onclick = () => openShelfBook(book.id);
+      li.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') openShelfBook(book.id); };
+
+      li.innerHTML = `
+        <span class="book-title">${escHtml(book.title)}</span>
+        <span class="book-count">${count > 0 ? count : ''}</span>
+      `;
+      bookList.appendChild(li);
+    });
+
+    shelfEl.appendChild(bookList);
+    inner.appendChild(shelfEl);
+  });
+}
+
+// ============================================================
+// SHELF — BOOK TIMELINE
+// ============================================================
+
+/**
+ * 本をクリックしたときにテーマ別タイムライン画面へ遷移する
+ */
+function openShelfBook(bookId) {
+  currentBookId = bookId;
+  renderShelfBookTimeline(bookId);
+
+  // 画面遷移
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-shelf-book').classList.add('active');
+
+  // ナビのactive状態をリセット
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+  window.scrollTo(0, 0);
+}
+
+/**
+ * 好きの棚に戻る（好きの棚アコーディオンを開いた状態でホームへ）
+ */
+function goBackToShelf() {
+  goTo('timeline');
+  // 少し待ってから棚パネルを開く
+  setTimeout(() => {
+    const panel = document.getElementById('shelf-panel');
+    const toggle = document.getElementById('btn-shelf-toggle');
+    if (panel && !panel.classList.contains('open')) {
+      panel.classList.add('open');
+      if (toggle) toggle.textContent = '好きの棚 ▲';
+      renderShelfPanel();
+    }
+  }, 50);
+}
+
+/**
+ * テーマ別タイムラインを描画する（Future Meなし）
+ */
+function renderShelfBookTimeline(bookId) {
+  // 本データを取得
+  const shelf = getShelf();
+  let targetBook = null;
+  for (const shelfItem of shelf) {
+    for (const book of (shelfItem.books || [])) {
+      if (book.id === bookId) { targetBook = book; break; }
+    }
+    if (targetBook) break;
+  }
+  if (!targetBook) return;
+
+  // ヘッダータイトルを更新
+  const titleEl = document.getElementById('shelf-book-title');
+  if (titleEl) titleEl.textContent = targetBook.title;
+
+  // タイムライン描画
+  const container = document.getElementById('shelf-book-timeline');
+  if (!container) return;
+
+  // 既存アイテムをクリア（timeline-lineは保持）
+  Array.from(container.children).forEach(el => {
+    if (!el.classList.contains('timeline-line')) el.remove();
+  });
+
+  const records = loadRecords();
+  const matched = records.filter(r => {
+    const text = ((r.memo || '') + ' ' + (r.url || '')).toLowerCase();
+    return targetBook.keywords.some(kw => text.includes(kw.toLowerCase()));
+  });
+
+  if (matched.length === 0) {
+    const emptyEl = document.createElement('div');
+    emptyEl.className = 'shelf-book-empty';
+    emptyEl.textContent = 'まだ記録がありません。\nこのテーマに関係するキーワードを含む\n記録を残していくと、ここに表示されます。';
+    container.appendChild(emptyEl);
+    return;
+  }
+
+  const FUTURE_COLORS_LOCAL = ['yellow', 'blue', 'purple'];
+  matched.forEach((rec, idx) => {
+    const dateObj = rec.date ? new Date(rec.date + 'T00:00:00') : new Date();
+    const year    = dateObj.getFullYear();
+    const month   = String(dateObj.getMonth()+1).padStart(2,'0');
+    const day     = String(dateObj.getDate()).padStart(2,'0');
+    const weekdays = ['日','月','火','水','木','金','土'];
+    const wday    = weekdays[dateObj.getDay()];
+
+    let photoHtml = rec.photo
+      ? `<img class="tl-card-photo" src="${escHtml(rec.photo)}" alt="記録写真" loading="lazy" />`
+      : '';
+    let urlHtml = rec.url
+      ? `<div class="tl-card-url"><a href="${escHtml(rec.url)}" target="_blank" rel="noopener">🔗 ${escHtml(rec.url)}</a></div>`
+      : '';
+    let memoHtml = rec.memo
+      ? `<div class="tl-card-memo">${escHtml(rec.memo)}</div>`
+      : '';
+
+    let metaHtml = '';
+    if (rec.photo) metaHtml += `<span class="tl-meta-item"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#7a6e63" stroke-width="1.2"><rect x="1" y="2.5" width="12" height="9.5" rx="1.5"/><circle cx="7" cy="7.5" r="2"/></svg>写真</span>`;
+    if (rec.url)   metaHtml += `<span class="tl-meta-item"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#7a6e63" stroke-width="1.2"><path d="M5.5 8.5L8.5 5.5"/><path d="M3.5 7.5L2 9a2.12 2.12 0 0 0 3 3l1.5-1.5"/><path d="M7.5 6.5L9 5a2.12 2.12 0 0 0-3-3L4.5 3.5"/></svg>URL</span>`;
+    if (rec.memo)  metaHtml += `<span class="tl-meta-item"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#7a6e63" stroke-width="1.2"><path d="M3 11L2 12l1-4 8-8 3 3-8 8z"/></svg>メモ</span>`;
+
+    const item = document.createElement('div');
+    item.className = 'timeline-item';
+    item.innerHTML = `
+      <div class="timeline-dot"></div>
+      <div class="timeline-date">
+        <div class="year">${year}</div>
+        <div class="day">${month}/${day}<span class="weekday">${wday}</span></div>
+      </div>
+      <div class="tl-card">
+        ${photoHtml}
+        <div class="tl-card-body">
+          ${metaHtml ? `<div class="tl-card-meta">${metaHtml}</div>` : ''}
+          ${memoHtml}
+          ${urlHtml}
+        </div>
+      </div>
+    `;
+    container.appendChild(item);
+  });
+}
+
+// ============================================================
+// MEMORY — RENDER & ORGANIZE（既存ロジックを保持）
+// ============================================================
+
 
 
 /**
@@ -1501,9 +1876,9 @@ function submitFeedback(entryId, reaction, reasons) {
 // TIMELINE RENDER
 // ============================================================
 function renderTimeline() {
-  // メモリーパネルが開いているときのみ更新（閉じている場合は更新不要）
-  const panel = document.getElementById('memory-panel');
-  if (panel && panel.classList.contains('open')) renderMemoryArea();
+  // 好きの棚パネルが開いているときのみ更新
+  const panel = document.getElementById('shelf-panel');
+  if (panel && panel.classList.contains('open')) renderShelfPanel();
 
   const container = document.getElementById('timeline-container');
   const emptyState = document.getElementById('empty-state');
@@ -1869,6 +2244,10 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('record-date').value = today;
   // タイムライン描画
   renderTimeline();
+  // 好きの棚の初期データ（まだ保存されていない場合のみ）
+  if (!loadShelf()) {
+    saveShelf(DEFAULT_SHELF);
+  }
 });
 </script>
 </body>
