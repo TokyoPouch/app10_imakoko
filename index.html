@@ -1031,7 +1031,14 @@ let currentBookId = null; // 現在表示中のbook ID
 // ============================================================
 // SHELF — DEFAULT DATA
 // ============================================================
-const DEFAULT_SHELF = [
+// ============================================================
+// DEFAULT_SHELF — 開発用テンプレート（本番表示には使用しない）
+// ※ このデータは localStorage に imakokoShelf が未保存の場合の
+//    UI参照用テンプレートとして保持する。
+//    本番では getShelf() が entries の有無で空配列を返すため
+//    このデータがユーザーに見えることはない。
+// ============================================================
+const DEFAULT_SHELF_TEMPLATE = [
   {
     id: 'shelf-1',
     title: '文化を未来へ残したい',
@@ -1370,8 +1377,29 @@ function saveShelf(shelf) {
   try { localStorage.setItem(SHELF_KEY, JSON.stringify(shelf)); return true; }
   catch(e) { console.error('shelf保存失敗:', e); return false; }
 }
+/**
+ * 好きの棚データを取得する。
+ *
+ * 【v3.32 修正】
+ * - entries（記録）が空の場合は空配列を返す。
+ *   → 新規ユーザーや localStorage が空の状態で DEFAULT_SHELF_TEMPLATE が
+ *     本番表示に混入する問題を防ぐ。
+ * - localStorage に imakokoShelf が保存されていればそれを返す。
+ * - imakokoShelf 未保存 かつ entries が存在する場合のみ DEFAULT_SHELF_TEMPLATE を返す。
+ *
+ * @returns {Array} 棚データ配列（空の場合は []）
+ */
 function getShelf() {
-  return loadShelf() || DEFAULT_SHELF;
+  // まず localStorage を参照
+  const saved = loadShelf();
+  if (saved !== null) return saved; // 明示的に保存されたデータを優先
+
+  // entries が空なら棚も空にする（テンプレートを本番表示しない）
+  const entries = loadRecords();
+  if (entries.length === 0) return [];
+
+  // entries がある場合のみテンプレートを参照可能にする
+  return DEFAULT_SHELF_TEMPLATE;
 }
 
 // ============================================================
@@ -1513,11 +1541,26 @@ function renderShelfPanel() {
   const inner = document.getElementById('shelf-panel-inner');
   if (!inner) return;
 
-  const shelf = getShelf();
+  const shelf = getShelf(); // v3.32: entriesが空なら[]
   inner.innerHTML = '';
 
   if (!shelf || shelf.length === 0) {
-    inner.innerHTML = '<p style="font-size:12px;color:var(--text-sub);padding:4px 2px;">棚がありません。</p>';
+    // entriesが空 or 棚未設定のとき
+    inner.innerHTML = [
+      '<p style="font-size:12px;color:var(--text-sub);padding:4px 2px 2px;">',
+      'まだ棚はありません。<br/>',
+      '記録を追加してから「棚を再整理」を押してください。',
+      '</p>'
+    ].join('');
+    // 「棚を再整理」ボタンは records が存在する場合のみ表示
+    if (loadRecords().length > 0) {
+      const reorganizeBtn = document.createElement('button');
+      reorganizeBtn.className = 'btn-reorganize-shelf';
+      reorganizeBtn.id = 'btn-reorganize-shelf';
+      reorganizeBtn.textContent = '棚を再整理';
+      reorganizeBtn.onclick = reorganizeShelf;
+      inner.appendChild(reorganizeBtn);
+    }
     return;
   }
 
@@ -1540,8 +1583,10 @@ function renderShelfPanel() {
       li.setAttribute('role', 'button');
       li.setAttribute('tabindex', '0');
       li.setAttribute('aria-label', book.title + ' ' + count + '件');
-      li.onclick = () => openShelfBook(book.id);
-      li.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') openShelfBook(book.id); };
+      // v3.32: bookオブジェクト直接渡し + parentTitle を付与してヘッダー表示に使う
+      const bookWithParent = Object.assign({}, book, { parentTitle: shelfItem.title });
+      li.onclick = () => openShelfBook(bookWithParent);
+      li.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') openShelfBook(bookWithParent); };
 
       li.innerHTML = `
         <span class="book-title">${escHtml(book.title)}</span>
@@ -1554,7 +1599,7 @@ function renderShelfPanel() {
     inner.appendChild(shelfEl);
   });
 
-  // ── 「棚を再整理」ボタン（好きの棚が開いているときのみ表示）──
+  // ── 「棚を再整理」ボタン ──
   const reorganizeBtn = document.createElement('button');
   reorganizeBtn.className = 'btn-reorganize-shelf';
   reorganizeBtn.id = 'btn-reorganize-shelf';
@@ -1580,11 +1625,15 @@ function renderShelfPanel() {
 
 /**
  * 本をクリックしたときにテーマ別タイムライン画面へ遷移する
- * @param {string} bookId - 本のID
+ *
+ * v3.32: bookオブジェクトを直接受け取る形に変更。
+ * bookId → getShelf()の再検索を不要にし、DEFAULT_SHELFへの参照を排除する。
+ *
+ * @param {object} book - 本データ { id, title, keywords }
  */
-function openShelfBook(bookId) {
-  currentBookId = bookId;
-  renderShelfBookTimeline(bookId);
+function openShelfBook(book) {
+  currentBookId = book.id;
+  renderShelfBookTimeline(book); // bookオブジェクト直接渡し
 
   // 画面遷移（.screen の active を切り替え）
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -1682,35 +1731,23 @@ function isRecordRelatedToBook(record, book) {
  * - localStorageの構造は変更しない
  * - 表示時のみリアルタイムフィルタリングを行う
  *
- * @param {string} bookId - 本のID
+ * v3.32: bookIdではなくbookオブジェクトを直接受け取る形に変更。
+ * getShelf() / DEFAULT_SHELF_TEMPLATE への再参照を不要にする。
+ *
+ * @param {object} book - 本データ { id, title, keywords, parentTitle? }
  */
-function renderShelfBookTimeline(bookId) {
-  // ── 本データ＆上位棚データを取得 ─────────────────────────────
-  const shelf = getShelf();
-  let targetBook  = null;
-  let parentShelf = null;
-
-  for (const shelfItem of shelf) {
-    for (const book of (shelfItem.books || [])) {
-      if (book.id === bookId) {
-        targetBook  = book;
-        parentShelf = shelfItem;
-        break;
-      }
-    }
-    if (targetBook) break;
-  }
-  if (!targetBook) return;
+function renderShelfBookTimeline(book) {
+  if (!book || !book.title) return;
 
   // ── ヘッダーを更新 ───────────────────────────────────────────
   const parentEl = document.getElementById('shelf-book-parent');
   const titleEl  = document.getElementById('shelf-book-title');
   const countEl  = document.getElementById('shelf-book-count');
 
-  // 上位棚（人生テーマ）を薄字で表示
-  if (parentEl) parentEl.textContent = parentShelf ? parentShelf.title : '';
+  // 上位棚（人生テーマ）を薄字で表示（book.parentTitle があれば使用）
+  if (parentEl) parentEl.textContent = book.parentTitle || '';
   // 本タイトル（関心テーマ名）
-  if (titleEl)  titleEl.textContent  = targetBook.title;
+  if (titleEl)  titleEl.textContent  = book.title;
 
   // ── タイムラインコンテナをクリア ─────────────────────────────
   const container = document.getElementById('shelf-book-timeline');
@@ -1732,7 +1769,7 @@ function renderShelfBookTimeline(bookId) {
 
   // ── shelfRelations の取得と形式の正規化 ─────────────────────
   const shelfRelations = loadShelfRelations();
-  const bookNameTrimmed = (targetBook.title || '').trim();
+  const bookNameTrimmed = (book.title || '').trim();
 
   console.log('[shelf-book] クリックされた本名:', JSON.stringify(bookNameTrimmed));
   console.log('[shelf-book] shelfRelations raw:', JSON.stringify(shelfRelations));
@@ -1780,7 +1817,7 @@ function renderShelfBookTimeline(bookId) {
   } else {
     // フォールバック: リアルタイム キーワード判定
     console.log('[shelf-book] shelfRelationsに該当なし → キーワード判定にフォールバック');
-    matched = records.filter(r => isRecordRelatedToBook(r, targetBook));
+    matched = records.filter(r => isRecordRelatedToBook(r, book));
     console.log('[shelf-book] キーワード判定 → 抽出件数:', matched.length,
       '| 対象ID:', matched.map(r => String(r.id)));
   }
@@ -2580,10 +2617,9 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('record-date').value = today;
   // タイムライン描画
   renderTimeline();
-  // 好きの棚の初期データ（まだ保存されていない場合のみ）
-  if (!loadShelf()) {
-    saveShelf(DEFAULT_SHELF);
-  }
+  // v3.32: 起動時に DEFAULT_SHELF_TEMPLATE を強制保存しない。
+  // getShelf() が entries の有無で空配列を返すため、
+  // 記録がない状態で棚が表示されることはない。
 });
 </script>
 </body>
