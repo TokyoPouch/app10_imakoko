@@ -790,6 +790,162 @@
       line-height: 2;
     }
     .shelf-book-empty svg { opacity: 0.3; margin-bottom: 16px; }
+
+    /* ===== 場所表示 ===== */
+    .tl-card-location {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-top: 4px;
+    }
+
+    /* ===== オンボーディング ===== */
+    .screen-onboard {
+      display: none;
+      flex-direction: column;
+      min-height: 100vh;
+      padding-bottom: 0;
+      background: var(--bg);
+    }
+    .screen-onboard.active { display: flex; }
+
+    .ob-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 32px 24px 40px;
+      gap: 24px;
+    }
+
+    .ob-future-me-box {
+      background: var(--yellow-pale);
+      border: 1px solid #f0e4a0;
+      border-radius: 10px;
+      padding: 16px 14px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .ob-future-me-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 1px solid #ddd;
+      background: #fff url('future_me.png') center/cover no-repeat;
+    }
+    .ob-future-me-content { flex: 1; }
+    .ob-future-me-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--pink);
+      letter-spacing: 0.1em;
+      margin-bottom: 6px;
+    }
+    .ob-future-me-text {
+      font-size: 15px;
+      color: var(--navy);
+      line-height: 1.75;
+      font-weight: 500;
+    }
+
+    .ob-input-wrap { display: flex; flex-direction: column; gap: 8px; }
+    .ob-input-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sub);
+      letter-spacing: 0.1em;
+    }
+    .ob-input {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--card);
+      color: var(--navy);
+      outline: none;
+      resize: none;
+      min-height: 90px;
+      transition: border-color 0.2s;
+    }
+    .ob-input:focus { border-color: var(--pink); }
+
+    .ob-btn-primary {
+      width: 100%;
+      background: var(--pink);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 15px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: 'Noto Sans JP', sans-serif;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: opacity 0.2s, transform 0.15s;
+      margin-top: auto;
+    }
+    .ob-btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+    .ob-btn-primary:active { transform: translateY(0); }
+
+    .ob-reply-box {
+      background: var(--blue-pale);
+      border: 1px solid #b8d8f8;
+      border-radius: 10px;
+      padding: 16px 14px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .ob-anokoro-wrap { display: flex; flex-direction: column; gap: 10px; }
+    .ob-anokoro-year {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 8px;
+      margin-top: 14px;
+      padding: 0 4px;
+    }
+    .ob-anokoro-year:first-child { margin-top: 4px; }
+    .ob-anokoro-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .ob-anokoro-row-year {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--navy);
+      padding: 0 2px;
+    }
+    .ob-anokoro-months-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: nowrap;
+      width: 100%;
+    }
+    .ob-anokoro-dot {
+      font-size: 11px;
+      color: #d1cbc3;
+      flex: 1;
+      text-align: center;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ob-caption {
+      font-size: 13px;
+      color: var(--text-sub);
+      line-height: 1.8;
+      text-align: center;
+      padding: 4px 8px;
+    }
   </style>
 </head>
 <body>
@@ -878,7 +1034,7 @@
     </div>
 
     <!-- あれなんだっけバナー -->
-    <a href="https://app02-two.vercel.app/" target="_blank" rel="noopener" class="arenandakke-banner" id="arenandakke-banner">
+    <a href="https://app08-arenani.vercel.app/" target="_blank" rel="noopener" class="arenandakke-banner" id="arenandakke-banner">
       <img src="arenandakke.png" alt="あれなんだっけ？" class="arenandakke-img" onerror="this.style.display='none'" />
       <div class="arenandakke-text">
         <h3>あれなんだっけ？</h3>
@@ -939,6 +1095,13 @@
           一言メモ
         </label>
         <textarea id="record-memo" class="form-input" placeholder="この日感じたこと、気になったこと..."></textarea>
+      </div>
+      <!-- 場所 -->
+      <div class="form-group">
+        <label class="form-label" for="record-location">
+          📍 場所
+        </label>
+        <input type="text" id="record-location" class="form-input" placeholder="場所（例：福岡県福岡市、京都、近所のカフェ）" />
       </div>
       <!-- 保存 -->
       <button id="btn-save" class="btn-save" onclick="saveRecord()">
@@ -1020,12 +1183,62 @@
       </div>
       <div class="settings-section">
         <h3>外部アプリ</h3>
-        <a href="https://app02-two.vercel.app/" target="_blank" rel="noopener" style="text-decoration:none;">
+        <a href="https://app08-arenani.vercel.app/" target="_blank" rel="noopener" style="text-decoration:none;">
           <button class="settings-btn">あれなんだっけ？ を開く ↗</button>
         </a>
       </div>
     </div>
   </div><!-- /screen-settings -->
+
+  <!-- ========== SCREEN: ONBOARDING 1 ========== -->
+  <div id="screen-onboard-1" class="screen-onboard">
+    <div class="ob-body">
+      <!-- Future Me の問いかけ -->
+      <div class="ob-future-me-box">
+        <div class="ob-future-me-avatar"></div>
+        <div class="ob-future-me-content">
+          <div class="ob-future-me-label">FUTURE ME</div>
+          <div class="ob-future-me-text">これから先も、<br/>覚えていたいことは<br/>ありますか？</div>
+        </div>
+      </div>
+
+      <!-- 自由入力欄 -->
+      <div class="ob-input-wrap">
+        <div class="ob-input-label">あなたが大切にしていること</div>
+        <textarea
+          id="ob-theme-input"
+          class="ob-input"
+          placeholder="好きなこと、人、場所、思い出など"
+        ></textarea>
+      </div>
+
+      <!-- はじめるボタン -->
+      <button class="ob-btn-primary" id="ob-start-btn" onclick="onboardNext()">はじめる</button>
+    </div>
+  </div><!-- /screen-onboard-1 -->
+
+  <!-- ========== SCREEN: ONBOARDING 2 ========== -->
+  <div id="screen-onboard-2" class="screen-onboard">
+    <div class="ob-body">
+      <!-- Future Me の返答 -->
+      <div class="ob-reply-box">
+        <div class="ob-future-me-avatar"></div>
+        <div class="ob-future-me-content">
+          <div class="ob-future-me-label">FUTURE ME</div>
+          <div class="ob-future-me-text" id="ob-reply-text"></div>
+        </div>
+      </div>
+
+      <!-- あのころ 空白地図 -->
+      <div class="ob-anokoro-wrap" id="ob-anokoro-map"></div>
+
+      <!-- キャプション -->
+      <div class="ob-caption">ここに、<br/>あなたらしさが少しずつ<br/>積み重なっていきます。</div>
+
+      <!-- ホームへボタン -->
+      <button class="ob-btn-primary" onclick="onboardFinish()">ホームへ</button>
+    </div>
+  </div><!-- /screen-onboard-2 -->
 
   <!-- ========== BOTTOM NAV ========== -->
   <nav id="bottom-nav">
@@ -1061,7 +1274,7 @@
     </div>
 
     <!-- あれなんだっけ？ -->
-    <a href="https://app02-two.vercel.app/" target="_blank" rel="noopener" class="nav-item" id="nav-are" aria-label="あれなんだっけ？">
+    <a href="https://app08-arenani.vercel.app/" target="_blank" rel="noopener" class="nav-item" id="nav-are" aria-label="あれなんだっけ？">
       <img src="arenandakke.png" alt="" class="nav-comic-avatar" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 28 28%22><circle cx=%2214%22 cy=%2214%22 r=%2213%22 fill=%22%23f0d8c0%22 stroke=%22%23ccc%22 stroke-width=%221%22/><text x=%2214%22 y=%2219%22 text-anchor=%22middle%22 font-size=%2213%22>？</text></svg>'"/>
       <span>あれなんだっけ？</span>
     </a>
@@ -1263,12 +1476,13 @@ function handlePhotoSelect(input) {
 // SAVE RECORD
 // ============================================================
 function saveRecord() {
-  const date   = document.getElementById('record-date').value;
-  const url    = document.getElementById('record-url').value.trim();
-  const memo   = document.getElementById('record-memo').value.trim();
-  const photo  = photoDataUrl;
+  const date     = document.getElementById('record-date').value;
+  const url      = document.getElementById('record-url').value.trim();
+  const memo     = document.getElementById('record-memo').value.trim();
+  const location = document.getElementById('record-location').value.trim();
+  const photo    = photoDataUrl;
 
-  if (!date && !url && !memo && !photo) {
+  if (!date && !url && !memo && !location && !photo) {
     showToast('何か入力してから保存してください');
     return;
   }
@@ -1278,6 +1492,7 @@ function saveRecord() {
     date: date || new Date().toISOString().slice(0,10),
     url,
     memo,
+    location,
     photo,
     futureMeLoading: true  // STEP3: AI生成を待機中
   };
@@ -1299,6 +1514,7 @@ function saveRecord() {
   document.getElementById('record-date').value = '';
   document.getElementById('record-url').value = '';
   document.getElementById('record-memo').value = '';
+  document.getElementById('record-location').value = '';
   document.getElementById('photo-preview').classList.remove('show');
   document.getElementById('photo-preview').src = '';
   document.getElementById('photo-warning').classList.remove('show');
@@ -1818,6 +2034,9 @@ function renderShelfBookTimeline(book) {
     const memoHtml = rec.memo
       ? `<div class="tl-card-memo">${escHtml(rec.memo)}</div>`
       : '';
+    const locationHtml = rec.location
+      ? `<div class="tl-card-location">📍 ${escHtml(rec.location)}</div>`
+      : '';
 
     let metaHtml = '';
     if (rec.photo) metaHtml += `<span class="tl-meta-item"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#7a6e63" stroke-width="1.2"><rect x="1" y="2.5" width="12" height="9.5" rx="1.5"/><circle cx="7" cy="7.5" r="2"/></svg>写真</span>`;
@@ -1837,6 +2056,7 @@ function renderShelfBookTimeline(book) {
         <div class="tl-card-body">
           ${metaHtml ? `<div class="tl-card-meta">${metaHtml}</div>` : ''}
           ${memoHtml}
+          ${locationHtml}
           ${urlHtml}
         </div>
       </div>
@@ -1926,6 +2146,7 @@ function openAnokoroMonth(year, month) {
     const photoHtml = rec.photo ? `<img class="tl-card-photo" src="${escHtml(rec.photo)}" alt="記録写真" loading="lazy" />` : '';
     const urlHtml = rec.url ? `<div class="tl-card-url"><a href="${escHtml(rec.url)}" target="_blank" rel="noopener">🔗 ${escHtml(rec.url)}</a></div>` : '';
     const memoHtml = rec.memo ? `<div class="tl-card-memo">${escHtml(rec.memo)}</div>` : '';
+    const locationHtml = rec.location ? `<div class="tl-card-location">📍 ${escHtml(rec.location)}</div>` : '';
 
     let metaHtml = '';
     if (rec.photo) metaHtml += `<span class="tl-meta-item"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#7a6e63" stroke-width="1.2"><rect x="1" y="2.5" width="12" height="9.5" rx="1.5"/><circle cx="7" cy="7.5" r="2"/></svg>写真</span>`;
@@ -1945,6 +2166,7 @@ function openAnokoroMonth(year, month) {
         <div class="tl-card-body">
           ${metaHtml ? `<div class="tl-card-meta">${metaHtml}</div>` : ''}
           ${memoHtml}
+          ${locationHtml}
           ${urlHtml}
         </div>
       </div>
@@ -2313,6 +2535,9 @@ function renderTimeline() {
     let memoHtml = rec.memo
       ? `<div class="tl-card-memo">${escHtml(rec.memo)}</div>`
       : '';
+    let locationHtml = rec.location
+      ? `<div class="tl-card-location">📍 ${escHtml(rec.location)}</div>`
+      : '';
 
     // メタアイコン
     let metaHtml = '';
@@ -2331,6 +2556,7 @@ function renderTimeline() {
         <div class="tl-card-body">
           ${metaHtml ? `<div class="tl-card-meta">${metaHtml}</div>` : ''}
           ${memoHtml}
+          ${locationHtml}
           ${urlHtml}
         </div>
       </div>
@@ -2633,14 +2859,125 @@ function escHtml(str) {
 }
 
 // ============================================================
+// ONBOARDING
+// ============================================================
+const WELCOME_KEY       = 'hasSeenWelcome';
+const INITIAL_THEME_KEY = 'initialTheme';
+const INITIAL_REPLY_KEY = 'initialFutureMeReply';
+
+const OB_FALLBACK_REPLY = 'それは、\nこれから積み重なっていく\n大切なテーマかもしれませんね。';
+
+function showOnboardingScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen-onboard').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+  const nav = document.getElementById('bottom-nav');
+  if (nav) nav.style.display = 'none';
+  window.scrollTo(0, 0);
+}
+
+async function onboardNext() {
+  const input = document.getElementById('ob-theme-input');
+  const theme = (input ? input.value.trim() : '') || '';
+  try { localStorage.setItem(INITIAL_THEME_KEY, theme); } catch(e) {}
+
+  // キャッシュ済みの返答があれば再利用（APIを呼ばない）
+  let cached = null;
+  try { cached = localStorage.getItem(INITIAL_REPLY_KEY); } catch(e) {}
+  if (cached) {
+    renderObScreen2(cached);
+    return;
+  }
+
+  // ローディング表示
+  const btn = document.getElementById('ob-start-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '送信中…'; }
+
+  let reply = OB_FALLBACK_REPLY;
+  const isFile = window.location.protocol === 'file:';
+
+  if (theme && !isFile) {
+    try {
+      const res = await fetch('/api/onboard-reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initialTheme: theme })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (data.reply) reply = data.reply;
+    } catch(err) {
+      console.warn('[onboard] API fallback:', err.message || err);
+    }
+  }
+
+  try { localStorage.setItem(INITIAL_REPLY_KEY, reply); } catch(e) {}
+
+  if (btn) { btn.disabled = false; btn.textContent = 'はじめる'; }
+  renderObScreen2(reply);
+}
+
+function renderObScreen2(reply) {
+  const replyEl = document.getElementById('ob-reply-text');
+  if (replyEl) replyEl.innerHTML = escHtml(reply).replace(/\n/g, '<br/>');
+  renderObAnokoroMap();
+  showOnboardingScreen('screen-onboard-2');
+}
+
+function onboardFinish() {
+  try { localStorage.setItem(WELCOME_KEY, 'true'); } catch(e) {}
+  const nav = document.getElementById('bottom-nav');
+  if (nav) nav.style.display = '';
+  goTo('timeline');
+}
+
+function renderObAnokoroMap() {
+  const container = document.getElementById('ob-anokoro-map');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const currentYear = new Date().getFullYear();
+  const years = [0, 1, 2, 3, 4].map(function(i) { return currentYear - i; });
+
+  years.forEach(function(year) {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'ob-anokoro-group';
+
+    const yearEl = document.createElement('div');
+    yearEl.className = 'ob-anokoro-row-year';
+    yearEl.textContent = year;
+    groupEl.appendChild(yearEl);
+
+    const monthsEl = document.createElement('div');
+    monthsEl.className = 'ob-anokoro-months-row';
+
+    for (var m = 1; m <= 12; m++) {
+      const dot = document.createElement('div');
+      dot.className = 'ob-anokoro-dot';
+      dot.textContent = m;
+      monthsEl.appendChild(dot);
+    }
+    groupEl.appendChild(monthsEl);
+    container.appendChild(groupEl);
+  });
+}
+
+// ============================================================
 // INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded', function() {
   // 今日の日付をデフォルトに
   const today = new Date().toISOString().slice(0,10);
   document.getElementById('record-date').value = today;
-  // タイムライン描画
-  renderTimeline();
+
+  // 初回起動チェック
+  const hasSeenWelcome = localStorage.getItem(WELCOME_KEY);
+  if (!hasSeenWelcome) {
+    showOnboardingScreen('screen-onboard-1');
+  } else {
+    renderTimeline();
+  }
   // v3.32: 起動時に DEFAULT_SHELF_TEMPLATE を強制保存しない。
   // getShelf() が entries の有無で空配列を返すため、
   // 記録がない状態で棚が表示されることはない。
