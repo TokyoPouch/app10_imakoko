@@ -1040,6 +1040,94 @@
     }
     .fm-conversation-detail.open { display: block; }
     .fm-conv-role { font-weight: 700; color: var(--navy); margin-right: 4px; }
+
+    /* ===== タグチップ（記録フォーム・絞り込みバー共通） ===== */
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-sub);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3px 9px;
+      cursor: pointer;
+      user-select: none;
+      font-family: 'Noto Sans JP', sans-serif;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
+    }
+    .tag-chip:hover { border-color: var(--pink); }
+    .tag-chip.selected { background: #ffeef4; border-color: var(--pink); color: var(--pink); font-weight: 600; }
+
+    .tag-chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .tag-add-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 11px;
+      color: var(--text-sub);
+      background: none;
+      border: 1px dashed var(--border);
+      border-radius: 20px;
+      padding: 3px 9px;
+      cursor: pointer;
+      font-family: 'Noto Sans JP', sans-serif;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .tag-add-btn:hover { border-color: var(--pink); color: var(--pink); }
+
+    /* タイムラインカード内タグ */
+    .tl-card-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .tl-tag {
+      font-size: 10px;
+      color: var(--text-sub);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1px 7px;
+    }
+
+    /* ===== タグ絞り込みバー ===== */
+    .tag-filter-bar {
+      padding: 8px 20px 4px;
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 6px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .tag-filter-bar::-webkit-scrollbar { display: none; }
+    .tag-filter-chip {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text-sub);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+      font-family: 'Noto Sans JP', sans-serif;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .tag-filter-chip:hover { border-color: var(--pink); }
+    .tag-filter-chip.active { background: #ffeef4; border-color: var(--pink); color: var(--pink); font-weight: 600; }
   </style>
 </head>
 <body>
@@ -1111,6 +1199,9 @@
         <!-- JS で描画 -->
       </div>
     </div>
+
+    <!-- タグ絞り込みバー（タグが1件以上ある場合のみ表示） -->
+    <div id="tag-filter-bar" class="tag-filter-bar" style="display:none;"></div>
 
     <!-- TIMELINE -->
     <div class="timeline-wrap" id="timeline-container">
@@ -1196,6 +1287,14 @@
           📍 場所
         </label>
         <input type="text" id="record-location" class="form-input" placeholder="場所（例：福岡県福岡市、京都、近所のカフェ）" />
+      </div>
+      <!-- タグ -->
+      <div class="form-group">
+        <div class="form-label">
+          🏷 タグ <span style="font-weight:400;font-size:11px;color:var(--text-sub);margin-left:4px;">（任意）</span>
+        </div>
+        <div id="tag-chips-row" class="tag-chips-row"></div>
+        <button type="button" class="tag-add-btn" onclick="openAddTagDialog()">＋ タグを追加</button>
       </div>
       <!-- 保存 -->
       <button id="btn-save" class="btn-save" onclick="saveRecord()">
@@ -1396,9 +1495,15 @@ const STORAGE_KEY         = 'imakoko_records';
 const MEMORY_KEY          = 'futureMeMemory';
 const FEEDBACK_KEY        = 'futureMeFeedback';
 const SHELF_KEY           = 'imakokoShelf';
-const SHELF_RELATIONS_KEY = 'shelfRelations'; // v3.31: Gemini意味的関連付け結果
+const SHELF_RELATIONS_KEY = 'shelfRelations';
+const USER_TAGS_KEY       = 'userTags';
+
+const PRESET_TAGS = ['映画', '音楽', '旅行', '食べ物', '仕事', '家族', '友達', '思い出'];
+
 let photoDataUrl = null;
-let currentBookId = null; // 現在表示中のbook ID
+let currentBookId = null;
+let selectedTags = [];      // 記録フォームで選択中のタグ
+let activeFilterTag = null; // タイムライン絞り込み中のタグ
 
 // ============================================================
 // SHELF — DEFAULT DATA
@@ -1451,6 +1556,7 @@ function goTo(screen) {
   }
 
   if (screen === 'timeline') renderTimeline();
+  if (screen === 'record') { selectedTags = []; renderTagSelector(); }
   window.scrollTo(0, 0);
 }
 
@@ -1495,6 +1601,112 @@ function loadFeedback() {
 function saveFeedback(feedback) {
   try { localStorage.setItem(FEEDBACK_KEY, JSON.stringify(feedback)); return true; }
   catch(e) { console.error('feedback保存失敗:', e); return false; }
+}
+
+// ============================================================
+// TAGS — STORAGE & NORMALIZE (STEP2)
+// ============================================================
+function loadUserTags() {
+  try { return JSON.parse(localStorage.getItem(USER_TAGS_KEY) || '[]'); }
+  catch(e) { return []; }
+}
+function saveUserTags(tags) {
+  try { localStorage.setItem(USER_TAGS_KEY, JSON.stringify(tags)); return true; }
+  catch(e) { console.error('userTags保存失敗:', e); return false; }
+}
+function normalizeTag(raw) {
+  return raw.replace(/^#+/, '').trim();
+}
+
+// ============================================================
+// TAGS — UI (STEP2)
+// ============================================================
+
+function renderTagSelector() {
+  const container = document.getElementById('tag-chips-row');
+  if (!container) return;
+
+  const userTags = loadUserTags();
+  const allTags = [...PRESET_TAGS];
+  userTags.forEach(t => { if (!allTags.includes(t)) allTags.push(t); });
+
+  container.innerHTML = '';
+  allTags.forEach(tag => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'tag-chip' + (selectedTags.includes(tag) ? ' selected' : '');
+    chip.textContent = tag;
+    chip.onclick = () => toggleTag(tag);
+    container.appendChild(chip);
+  });
+}
+
+function toggleTag(tag) {
+  const idx = selectedTags.indexOf(tag);
+  if (idx === -1) selectedTags.push(tag);
+  else selectedTags.splice(idx, 1);
+  renderTagSelector();
+}
+
+function openAddTagDialog() {
+  const raw = prompt('タグを入力してください');
+  if (raw === null) return;
+  const tag = normalizeTag(raw);
+  if (!tag) return;
+
+  const userTags = loadUserTags();
+  const allExisting = [...PRESET_TAGS, ...userTags];
+  if (!allExisting.includes(tag)) {
+    userTags.push(tag);
+    saveUserTags(userTags);
+  }
+
+  if (!selectedTags.includes(tag)) selectedTags.push(tag);
+  renderTagSelector();
+}
+
+function getAllUsedTags() {
+  const records = loadRecords();
+  const tagSet = new Set();
+  records.forEach(r => {
+    if (Array.isArray(r.tags)) r.tags.forEach(t => tagSet.add(t));
+  });
+  return Array.from(tagSet);
+}
+
+function renderTagFilterBar() {
+  const bar = document.getElementById('tag-filter-bar');
+  if (!bar) return;
+
+  const tags = getAllUsedTags();
+  if (tags.length === 0) {
+    bar.style.display = 'none';
+    return;
+  }
+
+  bar.style.display = 'flex';
+  bar.innerHTML = '';
+
+  const allChip = document.createElement('button');
+  allChip.type = 'button';
+  allChip.className = 'tag-filter-chip' + (!activeFilterTag ? ' active' : '');
+  allChip.textContent = 'すべて';
+  allChip.onclick = () => filterByTag(null);
+  bar.appendChild(allChip);
+
+  tags.forEach(tag => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'tag-filter-chip' + (activeFilterTag === tag ? ' active' : '');
+    chip.textContent = tag;
+    chip.onclick = () => filterByTag(tag);
+    bar.appendChild(chip);
+  });
+}
+
+function filterByTag(tag) {
+  activeFilterTag = tag;
+  renderTimeline();
 }
 
 // ============================================================
@@ -1594,7 +1806,8 @@ function saveRecord() {
     memo,
     location,
     photo,
-    futureMeLoading: true  // STEP3: AI生成を待機中
+    tags: [...selectedTags],
+    futureMeLoading: true
   };
 
   const records = loadRecords();
@@ -1624,6 +1837,7 @@ function saveRecord() {
   document.getElementById('photo-warning').classList.remove('show');
   photoDataUrl = null;
   document.getElementById('photo-input').value = '';
+  selectedTags = [];
 
   const msg = document.getElementById('save-success');
   msg.classList.add('show');
@@ -1755,6 +1969,7 @@ async function reorganizeShelf() {
     url:            r.url            || '',
     futureMe:       r.futureMe       || '',
     futureMeAnswer: r.futureMeAnswer || '',
+    tags:           Array.isArray(r.tags) ? r.tags : [],
   }));
 
   // file:// 環境ではローカルフォールバックのみ
@@ -1765,7 +1980,7 @@ async function reorganizeShelf() {
       const res = await fetch('/api/reorganize-shelf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shelfData: shelf, entries })
+        body: JSON.stringify({ shelfData: shelf, entries, userTags: loadUserTags() })
       });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
@@ -2609,13 +2824,17 @@ function submitFeedback(entryId, reaction, reasons) {
 // TIMELINE RENDER
 // ============================================================
 function renderTimeline() {
-  // 好きの棚パネルが開いているときのみ更新
   const panel = document.getElementById('shelf-panel');
   if (panel && panel.classList.contains('open')) renderShelfPanel();
 
+  renderTagFilterBar();
+
   const container = document.getElementById('timeline-container');
   const emptyState = document.getElementById('empty-state');
-  const records = loadRecords();
+  const allRecords = loadRecords();
+  const records = activeFilterTag
+    ? allRecords.filter(r => Array.isArray(r.tags) && r.tags.includes(activeFilterTag))
+    : allRecords;
 
   // 既存のアイテムを削除（empty-state と timeline-line は保持）
   Array.from(container.children).forEach(el => {
@@ -2664,6 +2883,13 @@ function renderTimeline() {
     if (rec.url)   metaHtml += `<span class="tl-meta-item"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#7a6e63" stroke-width="1.2"><path d="M5.5 8.5L8.5 5.5"/><path d="M3.5 7.5L2 9a2.12 2.12 0 0 0 3 3l1.5-1.5"/><path d="M7.5 6.5L9 5a2.12 2.12 0 0 0-3-3L4.5 3.5"/></svg>URL</span>`;
     if (rec.memo)  metaHtml += `<span class="tl-meta-item"><svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="#7a6e63" stroke-width="1.2"><path d="M3 11L2 12l1-4 8-8 3 3-8 8z"/></svg>メモ</span>`;
 
+    // タグHTML (STEP2)
+    let tagsHtml = '';
+    if (Array.isArray(rec.tags) && rec.tags.length > 0) {
+      const tagSpans = rec.tags.map(t => `<span class="tl-tag"># ${escHtml(t)}</span>`).join('');
+      tagsHtml = `<div class="tl-card-tags">${tagSpans}</div>`;
+    }
+
     // 会話バッジHTML（回答済みの場合のみ）
     const conversationBadgeHtml = rec.futureMeAnswer
       ? `<button class="fm-conversation-badge" onclick="toggleConversation(${rec.id})">💬 Future Meとの会話あり</button>
@@ -2690,6 +2916,7 @@ function renderTimeline() {
           ${metaHtml ? `<div class="tl-card-meta">${metaHtml}</div>` : ''}
           ${memoHtml}
           ${locationHtml}
+          ${tagsHtml}
           ${urlHtml}
           ${conversationBadgeHtml}
         </div>
@@ -2897,12 +3124,13 @@ function exportData() {
   }
 
   const payload = {
-    version: 3,
+    version: 4,
     exportedAt: new Date().toISOString(),
     records: records,
-    futureMeMemory:  loadMemory(),
+    futureMeMemory:   loadMemory(),
     futureMeFeedback: loadFeedback(),
-    shelfRelations:  loadShelfRelations() // v3.31: 棚再整理結果を含める
+    shelfRelations:   loadShelfRelations(),
+    userTags:         loadUserTags()
   };
 
   const json = JSON.stringify(payload, null, 2);
@@ -2991,9 +3219,15 @@ function importData(input) {
         const newFb = parsed.futureMeFeedback.filter(f => f && f.entryId && !existingFbIds.has(f.entryId));
         saveFeedback([...existingFb, ...newFb]);
       }
-      // shelfRelations を復元（v3.31: 存在する場合のみ・既存を上書き）
+      // shelfRelations を復元（存在する場合のみ・既存を上書き）
       if (parsed && parsed.shelfRelations && typeof parsed.shelfRelations.relations === 'object') {
         saveShelfRelations(parsed.shelfRelations);
+      }
+      // userTags を復元（STEP2: 既存とマージ・重複なし）
+      if (parsed && Array.isArray(parsed.userTags) && parsed.userTags.length > 0) {
+        const existingUserTags = loadUserTags();
+        const mergedUserTags = Array.from(new Set([...existingUserTags, ...parsed.userTags]));
+        saveUserTags(mergedUserTags);
       }
 
       showImportResult(`✅ ${newRecords.length}件を追加しました`, false);
@@ -3199,9 +3433,9 @@ function renderObAnokoroMap() {
 // INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded', function() {
-  // 今日の日付をデフォルトに
   const today = new Date().toISOString().slice(0,10);
   document.getElementById('record-date').value = today;
+  renderTagSelector();
 
   // 初回起動チェック
   const hasSeenWelcome = localStorage.getItem(WELCOME_KEY);
