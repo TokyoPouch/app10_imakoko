@@ -77,14 +77,12 @@ const DEFAULT_BOOK_MAP = [
 function buildLocalBooks(theme, relatedEntries) {
   const themeText = (theme || '').toLowerCase();
 
-  // テーマキーワードでマッチング
   for (const group of DEFAULT_BOOK_MAP) {
     if (group.themeKeys.some(k => themeText.includes(k.toLowerCase()))) {
       return group.books.slice(0, 5);
     }
   }
 
-  // エントリーからキーワード抽出（固有名詞は除外）
   const entryTexts = (relatedEntries || [])
     .map(r => ((r.memo || '') + ' ' + (r.url || '')).trim())
     .filter(Boolean)
@@ -95,6 +93,14 @@ function buildLocalBooks(theme, relatedEntries) {
   }
 
   return ['記録のまとまり', 'このテーマの探索'];
+}
+
+// ── 複数テーマ用ローカルフォールバック ──────────────────────────
+function buildLocalFullShelf(themes, entries) {
+  return (themes || []).map(theme => {
+    const books = buildLocalBooks(theme, entries);
+    return { title: theme, books };
+  }).filter(s => s.title && s.books.length > 0);
 }
 
 // ============================================================
@@ -108,9 +114,134 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' });
 
-  const { theme = '', relatedEntries = [] } = req.body || {};
+  const { theme = '', relatedEntries = [], themes, entries, userTags } = req.body || {};
 
   const apiKey = process.env.GEMINI_API_KEY;
+
+  // ── 複数テーマ（新形式）: { themes, entries, userTags } ────────
+  if (Array.isArray(themes) && themes.length > 0) {
+    if (!apiKey) {
+      console.warn('[generate-books] GEMINI_API_KEY not set → local fallback (multi-theme)');
+      return res.status(200).json({ shelf: buildLocalFullShelf(themes, entries || []) });
+    }
+
+    const safeEntries = Array.isArray(entries) ? entries.slice(0, 50) : [];
+    const entriesText = safeEntries
+      .map(r => [
+        `・${r.date || '?'}`,
+        r.memo   ? `メモ:${r.memo}` : null,
+        (r.tags && r.tags.length) ? `タグ:[${r.tags.join(',')}]` : null,
+        r.futureMeAnswer ? `深掘り:${r.futureMeAnswer}` : null,
+      ].filter(Boolean).join(' / '))
+      .join('\n') || 'なし';
+
+    const userTagsText = (userTags || []).join('、') || 'なし';
+
+    const userPromptMulti = `以下のJSONのみを返してください。
+マークダウン（\`\`\`json 等の囲み）・前置き・説明文は一切禁止。
+
+あなたはユーザーの記録から「好きの棚」を整理するAIです。
+記録・タグ・深掘り回答を分析し、各棚（人生テーマ）の「本（関心テーマ）」を提案してください。
+
+【棚について】
+以下の棚名をそのまま使用してください（変更・省略禁止）：
+${JSON.stringify(themes)}
+
+【本の命名ルール】
+・ツール名・サービス名のみの本は禁止（ChatGPT, Gemini, Vercel 等）
+・活動テーマを表す名前を使う（例: AIとの対話, Webサービス開発, 創作支援AI）
+・継続的な固有の活動テーマはOK（例: ミャンマーパンツ, 日本の伝統布, 認知症支援）
+・各棚につき最大5個、重複禁止、短く分かりやすい名前
+
+【出力フォーマット】
+{
+  "shelf": [
+    { "title": "棚の名前（themesと完全一致）", "books": ["本1", "本2"] },
+    { "title": "別の棚名", "books": ["本3"] }
+  ]
+}
+
+【入力データ】
+
+棚（人生テーマ）:
+${JSON.stringify(themes)}
+
+ユーザーのタグ:
+${userTagsText}
+
+記録:
+${entriesText}`;
+
+    try {
+      const ai = new GoogleGenAI({ apiKey });
+
+      console.log('[generate-books] multi-theme request, themes:', themes.length, 'entries:', safeEntries.length);
+
+      const { response, usedModel } = await tryGenerateContent(ai, MODELS_TO_TRY, {
+        contents: userPromptMulti,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'object',
+            properties: {
+              shelf: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    title: { type: 'string' },
+                    books: { type: 'array', items: { type: 'string' } }
+                  },
+                  required: ['title', 'books']
+                }
+              }
+            },
+            required: ['shelf']
+          },
+          maxOutputTokens: 1500,
+          temperature: 0.4,
+        },
+      });
+
+      console.log(`[generate-books] multi-theme response (${usedModel}):`, response.text);
+
+      let raw = (response.text || '').trim();
+      if (!raw) {
+        try {
+          const parts = response?.candidates?.[0]?.content?.parts;
+          if (parts && parts.length > 0) raw = parts.map(p => p.text || '').join('').trim();
+        } catch (e) {
+          console.warn('[generate-books] candidates access failed:', e.message);
+        }
+      }
+      if (!raw) throw new Error('Empty response from Gemini');
+
+      raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      const parsed = JSON.parse(raw);
+
+      const shelf = Array.isArray(parsed.shelf)
+        ? parsed.shelf
+            .map(item => ({
+              title: (item.title || '').trim(),
+              books: Array.isArray(item.books)
+                ? item.books.map(b => (b || '').trim()).filter(b => b && !isProperNounOnly(b)).slice(0, 5)
+                : []
+            }))
+            .filter(s => s.title && s.books.length > 0)
+        : [];
+
+      if (shelf.length === 0) throw new Error('Empty shelf after filtering');
+
+      console.log('[generate-books] multi-theme success, shelves:', shelf.length);
+      return res.status(200).json({ shelf });
+
+    } catch (err) {
+      console.warn('[generate-books] multi-theme API error → local fallback:', err.message || err);
+      return res.status(200).json({ shelf: buildLocalFullShelf(themes, entries || []) });
+    }
+  }
+
+  // ── 単一テーマ（旧形式）: { theme, relatedEntries } ───────────
   if (!apiKey) {
     console.error('[generate-books] GEMINI_API_KEY is not set → local fallback');
     const books = buildLocalBooks(theme, relatedEntries);

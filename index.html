@@ -1954,63 +1954,25 @@ function saveShelfRelations(data) {
  * 送るデータ: 棚データ・記録（id/date/memo/url/futureMe のみ）
  * 送らないデータ: 画像Base64
  */
-async function reorganizeShelf() {
-  const btn = document.getElementById('btn-reorganize-shelf');
-  if (btn) { btn.disabled = true; btn.textContent = '整理中…'; }
+// ローカルフォールバック用：テーマ→棚構造を構築
+function buildLocalShelf(themes, allRecords) {
+  return themes.map((theme, si) => {
+    const words = theme.split(/[・、\s\/]+/).filter(w => w.length > 1);
+    return {
+      title: theme,
+      books: [{
+        id:       'book_' + si + '_0',
+        title:    theme + 'の探索',
+        keywords: words.length > 0 ? words : [theme],
+      }]
+    };
+  }).filter(s => s.title);
+}
 
-  const shelf = getShelf();
-  const allRecords = loadRecords();
-
-  // 送信するエントリー（画像Base64は送らない・直近50件）
-  const entries = allRecords.slice(0, 50).map(r => ({
-    id:             String(r.id),
-    date:           r.date           || '',
-    memo:           r.memo           || '',
-    url:            r.url            || '',
-    futureMe:       r.futureMe       || '',
-    futureMeAnswer: r.futureMeAnswer || '',
-    tags:           Array.isArray(r.tags) ? r.tags : [],
-  }));
-
-  // file:// 環境ではローカルフォールバックのみ
-  const isFileProtocol = window.location.protocol === 'file:';
-
-  if (!isFileProtocol) {
-    try {
-      const res = await fetch('/api/reorganize-shelf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ shelfData: shelf, entries, userTags: loadUserTags() })
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-
-      console.log('[shelf-response]', data);
-      console.log('[shelf-debug] shelfData sent:', shelf);
-      console.log('[shelf-debug] relations count:', data && data.relations ? Object.keys(data.relations).length : 'no relations');
-
-      if (data && data.relations && typeof data.relations === 'object') {
-        const toSave = {
-          relations:  data.relations,
-          updatedAt:  new Date().toISOString()
-        };
-        console.log('[shelf-saved]', toSave);
-        saveShelfRelations(toSave);
-        renderShelfPanel();
-        showToast('✨ 棚を再整理しました');
-        if (btn) { btn.disabled = false; btn.textContent = '棚を再整理'; }
-        return;
-      }
-      throw new Error('relations が空です');
-    } catch (err) {
-      console.warn('[reorganizeShelf] API失敗 → キーワードフォールバック:', err.message || err);
-    }
-  }
-
-  // ── ローカルフォールバック（file:// またはAPIエラー時）──
-  // キーワードマッチをベースに relations を構築する
+// ローカルフォールバック用：キーワードマッチでrelationsを構築・保存
+function _saveLocalRelations(shelf, allRecords) {
   const relations = {};
-  for (const shelfItem of shelf) {
+  for (const shelfItem of (shelf || [])) {
     for (const book of (shelfItem.books || [])) {
       const matched = allRecords.filter(r => isRecordRelatedToBook(r, book));
       if (matched.length > 0) {
@@ -2018,10 +1980,109 @@ async function reorganizeShelf() {
       }
     }
   }
-  const toSave = { relations, updatedAt: new Date().toISOString() };
-  saveShelfRelations(toSave);
+  saveShelfRelations({ relations, updatedAt: new Date().toISOString() });
+}
+
+async function reorganizeShelf() {
+  const btn = document.getElementById('btn-reorganize-shelf');
+  if (btn) { btn.disabled = true; btn.textContent = '整理中…'; }
+
+  const allRecords = loadRecords();
+
+  // futureMeMemory から人生テーマ（棚の名前）を取得
+  const rawMemory = loadMemory();
+  const themes = rawMemory
+    .map(t => (typeof t === 'string' ? t : (t && t.theme ? t.theme : '')))
+    .filter(Boolean);
+
+  if (themes.length === 0) {
+    showToast('まず「記憶を整理する」を実行してください');
+    if (btn) { btn.disabled = false; btn.textContent = '棚を再整理'; }
+    return;
+  }
+
+  // 送信エントリー（画像Base64は除外・直近50件）
+  const entries = allRecords.slice(0, 50).map(r => ({
+    id:             String(r.id),
+    date:           r.date           || '',
+    memo:           r.memo           || '',
+    url:            r.url            || '',
+    location:       r.location       || '',
+    futureMe:       r.futureMe       || '',
+    futureMeAnswer: r.futureMeAnswer || '',
+    tags:           Array.isArray(r.tags) ? r.tags : [],
+  }));
+
+  const isFileProtocol = window.location.protocol === 'file:';
+
+  // ── STEP 1: /api/generate-books → imakokoShelf を生成 ────────
+  let newShelf = [];
+
+  if (!isFileProtocol) {
+    try {
+      const res1 = await fetch('/api/generate-books', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ themes, entries, userTags: loadUserTags() })
+      });
+      if (!res1.ok) throw new Error('HTTP ' + res1.status);
+      const data1 = await res1.json();
+
+      console.log('[generate-books-response]', data1);
+
+      if (data1 && Array.isArray(data1.shelf) && data1.shelf.length > 0) {
+        // book title文字列 → {id, title, keywords} オブジェクトに変換
+        newShelf = data1.shelf.map((item, si) => ({
+          title: item.title,
+          books: (item.books || []).map((bookTitle, bi) => ({
+            id:       'book_' + si + '_' + bi,
+            title:    bookTitle,
+            keywords: bookTitle.split(/[・、\s\/]+/).filter(w => w.length > 0),
+          }))
+        })).filter(s => s.title && s.books.length > 0);
+      } else {
+        throw new Error('shelf data missing or empty');
+      }
+    } catch (err) {
+      console.warn('[reorganizeShelf] generate-books失敗 → ローカルフォールバック:', err.message || err);
+      newShelf = buildLocalShelf(themes, allRecords);
+    }
+  } else {
+    newShelf = buildLocalShelf(themes, allRecords);
+  }
+
+  // imakokoShelf に保存
+  saveShelf(newShelf);
+  console.log('[imakokoShelf-saved]', newShelf);
+
+  // ── STEP 2: /api/reorganize-shelf → shelfRelations を生成 ────
+  if (!isFileProtocol && newShelf.length > 0) {
+    try {
+      const res2 = await fetch('/api/reorganize-shelf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shelfData: newShelf, entries, userTags: loadUserTags() })
+      });
+      if (!res2.ok) throw new Error('HTTP ' + res2.status);
+      const data2 = await res2.json();
+
+      console.log('[reorganize-shelf-response]', data2.relations);
+
+      if (data2 && data2.relations && typeof data2.relations === 'object') {
+        saveShelfRelations({ relations: data2.relations, updatedAt: new Date().toISOString() });
+      }
+    } catch (err) {
+      console.warn('[reorganizeShelf] reorganize-shelf失敗 → キーワードフォールバック:', err.message || err);
+      _saveLocalRelations(newShelf, allRecords);
+    }
+  } else {
+    _saveLocalRelations(newShelf, allRecords);
+  }
+
+  // ── STEP 3: 再描画 ────────────────────────────────────────────
   renderShelfPanel();
-  showToast('棚を整理しました（ローカル判定）');
+  console.log('[shelf-render]', getShelf());
+  showToast('✨ 棚を再整理しました');
   if (btn) { btn.disabled = false; btn.textContent = '棚を再整理'; }
 }
 
