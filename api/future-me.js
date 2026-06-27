@@ -116,7 +116,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' });
 
-  const { currentEntry, memoryThemes = [] } = req.body || {};
+  const { currentEntry, memoryThemes = [], photoAnalysis } = req.body || {};
 
   if (!currentEntry) {
     return res.status(400).json({ error: 'currentEntry is required' });
@@ -132,13 +132,19 @@ export default async function handler(req, res) {
   }
 
   // ── プロンプト構築 ────────────────────────────────────────
+  // photoAnalysis はリクエストボディまたは currentEntry のどちらから来ても対応
+  const effectivePhotoAnalysis = photoAnalysis || currentEntry.photoAnalysis || null;
+
   const currentText = [
     '現在の記録：',
     `日付: ${currentEntry.date     || 'なし'}`,
     `メモ: ${currentEntry.memo     || 'なし'}`,
     `URL: ${currentEntry.url       || 'なし'}`,
     `場所: ${currentEntry.location || 'なし'}`,
-  ].join('\n');
+    effectivePhotoAnalysis && effectivePhotoAnalysis.description
+      ? `写真の印象: ${effectivePhotoAnalysis.description}`
+      : null,
+  ].filter(Boolean).join('\n');
 
   // memoryThemes は文字列配列またはオブジェクト配列のどちらでも対応
   const safeMemory = Array.isArray(memoryThemes) ? memoryThemes.slice(0, 20) : [];

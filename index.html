@@ -154,6 +154,7 @@
     .tl-card-memo { font-size: 13px; color: var(--navy); line-height: 1.6; margin-bottom: 4px; }
     .tl-card-url a { font-size: 12px; color: var(--mint); text-decoration: none; word-break: break-all; }
     .tl-card-url a:hover { text-decoration: underline; }
+    .photo-analysis-text { font-size: 11px; color: var(--text-sub); opacity: 0.65; line-height: 1.55; padding: 4px 0 2px; font-style: italic; letter-spacing: 0.01em; }
 
     /* Future Me コメント */
     .future-me-box {
@@ -1128,6 +1129,72 @@
     }
     .tag-filter-chip:hover { border-color: var(--pink); }
     .tag-filter-chip.active { background: #ffeef4; border-color: var(--pink); color: var(--pink); font-weight: 600; }
+
+    /* ===== 新オンボーディング ===== */
+    @keyframes obFadeSlideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .ob-new-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 32px 28px 28px;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .ob-intro-p {
+      opacity: 0;
+      font-size: 15px;
+      line-height: 1.85;
+      color: var(--navy);
+    }
+    .ob-new-body.ob-start .ob-intro-p {
+      animation: obFadeSlideIn 0.7s ease forwards;
+    }
+    .ob-new-body.ob-start .ob-intro-p:nth-child(1) { animation-delay: 0.2s; }
+    .ob-new-body.ob-start .ob-intro-p:nth-child(2) { animation-delay: 0.9s; }
+    .ob-new-body.ob-start .ob-intro-p:nth-child(3) { animation-delay: 1.6s; }
+    .ob-new-body.ob-start .ob-intro-p:nth-child(4) { animation-delay: 2.3s; }
+
+    .ob-qa-wrap {
+      opacity: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 4px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+    .ob-new-body.ob-start .ob-qa-wrap {
+      animation: obFadeSlideIn 0.7s ease forwards;
+      animation-delay: 3.0s;
+    }
+
+    .ob-first-question {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--navy);
+      line-height: 1.5;
+    }
+
+    .ob-new-input {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--card);
+      color: var(--navy);
+      outline: none;
+      resize: none;
+      height: 76px;
+      transition: border-color 0.2s;
+    }
+    .ob-new-input:focus { border-color: var(--pink); }
   </style>
 </head>
 <body>
@@ -1385,28 +1452,20 @@
 
   <!-- ========== SCREEN: ONBOARDING 1 ========== -->
   <div id="screen-onboard-1" class="screen-onboard">
-    <div class="ob-body">
-      <!-- Future Me の問いかけ -->
-      <div class="ob-future-me-box">
-        <div class="ob-future-me-avatar"></div>
-        <div class="ob-future-me-content">
-          <div class="ob-future-me-label">FUTURE ME</div>
-          <div class="ob-future-me-text">これから先も、<br/>覚えていたいことは<br/>ありますか？</div>
-        </div>
-      </div>
-
-      <!-- 自由入力欄 -->
-      <div class="ob-input-wrap">
-        <div class="ob-input-label">あなたが大切にしていること</div>
+    <div class="ob-new-body">
+      <p class="ob-intro-p">日本では、65歳以上の5人に1人が<br/>認知症になると言われています。</p>
+      <p class="ob-intro-p">私はAIと認知症について考える中で、<br/>「自分らしさを未来へ残す方法」<br/>を考え始めました。</p>
+      <p class="ob-intro-p">好きなこと。<br/>夢中になっていること。<br/>大切にしている人や場所。</p>
+      <p class="ob-intro-p">いまここ手帳は、<br/>そんな記録を積み重ねながら、<br/>未来の自分とつながるための場所です。</p>
+      <div class="ob-qa-wrap">
+        <p class="ob-first-question">最近、心が動いたことはありますか？</p>
         <textarea
           id="ob-theme-input"
-          class="ob-input"
-          placeholder="好きなこと、人、場所、思い出など"
+          class="ob-new-input"
+          placeholder="好きなことや大切なこと"
         ></textarea>
+        <button class="ob-btn-primary" id="ob-start-btn" onclick="onboardFinishNew()">はじめる</button>
       </div>
-
-      <!-- はじめるボタン -->
-      <button class="ob-btn-primary" id="ob-start-btn" onclick="onboardNext()">はじめる</button>
     </div>
   </div><!-- /screen-onboard-1 -->
 
@@ -2030,14 +2089,15 @@ async function reorganizeShelf() {
 
   // 送信エントリー（画像Base64は除外・直近50件）
   const entries = allRecords.slice(0, 50).map(r => ({
-    id:             String(r.id),
-    date:           r.date           || '',
-    memo:           r.memo           || '',
-    url:            r.url            || '',
-    location:       r.location       || '',
-    futureMe:       r.futureMe       || '',
-    futureMeAnswer: r.futureMeAnswer || '',
-    tags:           Array.isArray(r.tags) ? r.tags : [],
+    id:              String(r.id),
+    date:            r.date           || '',
+    memo:            r.memo           || '',
+    url:             r.url            || '',
+    location:        r.location       || '',
+    futureMe:        r.futureMe       || '',
+    futureMeAnswer:  r.futureMeAnswer || '',
+    tags:            Array.isArray(r.tags) ? r.tags : [],
+    photoDescription: (r.photoAnalysis && r.photoAnalysis.description) ? r.photoAnalysis.description : '',
   }));
 
   // ── STEP 0: futureMeMemory が空なら /api/organize-memory で自動生成 ──
@@ -2991,7 +3051,7 @@ function renderTimeline() {
     // STEP3: AI生成済みコメントがあれば使用、ローディング中は待機テキスト、なければフォールバック
     const isLoading = rec.futureMeLoading === true;
     const fmText = isLoading
-      ? 'Future Meが考えています…'
+      ? (rec.photo ? '写真を読み込んでいます...' : 'Future Meが考えています…')
       : (rec.futureMe || generateFutureMe(rec));
     const dateObj = rec.date ? new Date(rec.date + 'T00:00:00') : new Date();
     const year = dateObj.getFullYear();
@@ -3005,6 +3065,9 @@ function renderTimeline() {
 
     let photoHtml = rec.photo
       ? `<img class="tl-card-photo" src="${escHtml(rec.photo)}" alt="記録写真" loading="lazy" />`
+      : '';
+    let photoAnalysisHtml = (rec.photo && rec.photoAnalysis && rec.photoAnalysis.description)
+      ? `<div class="photo-analysis-text">${escHtml(rec.photoAnalysis.description)}</div>`
       : '';
     let urlHtml = rec.url
       ? `<div class="tl-card-url"><a href="${escHtml(rec.url)}" target="_blank" rel="noopener">🔗 ${escHtml(rec.url)}</a></div>`
@@ -3053,6 +3116,7 @@ function renderTimeline() {
         ${photoHtml}
         <div class="tl-card-body">
           ${metaHtml ? `<div class="tl-card-meta">${metaHtml}</div>` : ''}
+          ${photoAnalysisHtml}
           ${memoHtml}
           ${locationHtml}
           ${tagsHtml}
@@ -3095,12 +3159,55 @@ async function fetchAndUpdateFutureMe(recordId) {
   const rec = allRecords.find(r => r.id === recordId);
   if (!rec) return;
 
-  // 人生テーマメモリーを取得（文字列配列に対応）
   const rawMemory = loadMemory();
   const memoryThemes = rawMemory.map(t => typeof t === 'string' ? t : (t && t.theme ? t.theme : '')).filter(Boolean);
 
   const textEl = document.getElementById('fm-text-' + recordId);
+  const isFileProtocol = window.location.protocol === 'file:';
 
+  // ── 写真解析（写真あり・未解析・Vercel環境のみ）────────────────
+  let photoAnalysis = rec.photoAnalysis || null;
+
+  if (rec.photo && !photoAnalysis && !isFileProtocol) {
+    try {
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 10000);
+
+      const photoRes = await fetch('/api/analyze-photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photoBase64: rec.photo }),
+        signal: controller.signal,
+      });
+      clearTimeout(tid);
+
+      if (photoRes.ok) {
+        const photoData = await photoRes.json();
+        if (photoData.photoAnalysis && photoData.photoAnalysis.description) {
+          photoAnalysis = photoData.photoAnalysis;
+
+          // localStorage に photoAnalysis を保存
+          const recs = loadRecords();
+          const ri = recs.findIndex(r => r.id === recordId);
+          if (ri !== -1) {
+            recs[ri].photoAnalysis = photoAnalysis;
+            saveRecords(recs);
+          }
+        }
+      }
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        console.warn('[analyze-photo] 10秒タイムアウト → photoAnalysisなしで続行');
+      } else {
+        console.warn('[analyze-photo] エラー → photoAnalysisなしで続行:', err.message || err);
+      }
+    }
+
+    // ローディングテキストを Future Me 待機に切り替え
+    if (textEl) textEl.textContent = 'Future Meが考えています…';
+  }
+
+  // ── Future Me 生成 ───────────────────────────────────────────
   try {
     const res = await fetch('/api/future-me', {
       method: 'POST',
@@ -3108,6 +3215,7 @@ async function fetchAndUpdateFutureMe(recordId) {
       body: JSON.stringify({
         currentEntry: { date: rec.date, memo: rec.memo, url: rec.url, location: rec.location },
         memoryThemes,
+        photoAnalysis,
       })
     });
 
@@ -3125,10 +3233,8 @@ async function fetchAndUpdateFutureMe(recordId) {
       saveRecords(records);
     }
 
-    // DOM を更新：コメントテキスト（ボックスがまだ見えている間に更新）
     if (textEl) textEl.innerHTML = escHtml(data.comment).replace(/\n/g, '<br/>');
 
-    // 質問がある場合：黄色ボックスを隠して質問セクションを表示
     if (data.question) {
       const fmBox = document.getElementById('fm-box-' + recordId);
       if (fmBox) fmBox.style.display = 'none';
@@ -3138,10 +3244,10 @@ async function fetchAndUpdateFutureMe(recordId) {
   } catch (err) {
     console.warn('Future Me API fallback:', err.message || err);
 
-    const fallback   = generateFutureMe(rec);
-    const fallbackQ  = generateQuestion(rec);
-    const records    = loadRecords();
-    const i          = records.findIndex(r => r.id === recordId);
+    const fallback  = generateFutureMe(rec);
+    const fallbackQ = generateQuestion(rec);
+    const records   = loadRecords();
+    const i         = records.findIndex(r => r.id === recordId);
     if (i !== -1) {
       records[i].futureMe         = fallback;
       records[i].futureMeQuestion = fallbackQ;
@@ -3151,7 +3257,6 @@ async function fetchAndUpdateFutureMe(recordId) {
 
     if (textEl) textEl.innerHTML = escHtml(fallback).replace(/\n/g, '<br/>');
 
-    // フォールバック時も黄色ボックスを隠して質問セクションを表示
     const fmBox = document.getElementById('fm-box-' + recordId);
     if (fmBox) fmBox.style.display = 'none';
     renderFutureMeQuestion(recordId);
@@ -3466,7 +3571,7 @@ function escHtml(str) {
 // ============================================================
 // ONBOARDING
 // ============================================================
-const WELCOME_KEY       = 'hasSeenWelcome';
+const WELCOME_KEY       = 'onboardingCompleted';
 const INITIAL_THEME_KEY = 'initialTheme';
 const INITIAL_REPLY_KEY = 'initialFutureMeReply';
 
@@ -3480,6 +3585,40 @@ function showOnboardingScreen(id) {
   const nav = document.getElementById('bottom-nav');
   if (nav) nav.style.display = 'none';
   window.scrollTo(0, 0);
+  // フェードインアニメーション起動（50ms後に確実にDOMが描画されてから）
+  if (id === 'screen-onboard-1') {
+    setTimeout(function() {
+      const body = document.querySelector('.ob-new-body');
+      if (body) body.classList.add('ob-start');
+    }, 50);
+  }
+}
+
+function onboardFinishNew() {
+  const input = document.getElementById('ob-theme-input');
+  const theme = input ? input.value.trim() : '';
+
+  // 入力があれば最初の記録として保存
+  if (theme) {
+    const record = {
+      id: Date.now(),
+      date: new Date().toISOString().slice(0, 10),
+      url: '',
+      memo: theme,
+      location: '',
+      photo: null,
+      tags: [],
+      futureMeLoading: true
+    };
+    const records = loadRecords();
+    records.unshift(record);
+    saveRecords(records);
+  }
+
+  try { localStorage.setItem(WELCOME_KEY, 'true'); } catch(e) {}
+  const nav = document.getElementById('bottom-nav');
+  if (nav) nav.style.display = '';
+  goTo('timeline');
 }
 
 async function onboardNext() {

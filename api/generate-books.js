@@ -142,6 +142,7 @@ export default async function handler(req, res) {
         r.location     ? `場所:${r.location}` : null,
         (r.tags && r.tags.length) ? `タグ:[${r.tags.join(',')}]` : null,
         r.futureMeAnswer ? `深掘り:${r.futureMeAnswer}` : null,
+        r.photoDescription ? `写真:${r.photoDescription}` : null,
       ].filter(Boolean).join(' / '))
       .join('\n') || 'なし';
 
