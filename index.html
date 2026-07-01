@@ -3213,7 +3213,7 @@ async function fetchAndUpdateFutureMe(recordId) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        currentEntry: { date: rec.date, memo: rec.memo, url: rec.url, location: rec.location },
+        currentEntry: { date: rec.date, memo: rec.memo, tags: Array.isArray(rec.tags) ? rec.tags : [], url: rec.url, location: rec.location },
         memoryThemes,
         photoAnalysis,
       })
