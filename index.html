@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>いまここ手帳 β — Future Me | 好きを忘れないAI</title>
   <meta name="description" content="写真・URL・メモなどの記録をもとに、積み重なった自分と、もう一度つながるためのログアプリ。" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -25,6 +25,7 @@
       --text-sub: #7a6e63;
       --radius: 12px;
       --nav-h: 68px;
+      --safe-b: env(safe-area-inset-bottom, 0px);
     }
     html, body {
       height: 100%;
@@ -44,7 +45,7 @@
     }
 
     /* ===== SCREENS ===== */
-    .screen { display: none; flex-direction: column; min-height: 100vh; padding-bottom: calc(var(--nav-h) + 8px); }
+    .screen { display: none; flex-direction: column; min-height: 100vh; padding-bottom: calc(var(--nav-h) + 8px + var(--safe-b)); }
     .screen.active { display: flex; }
 
     /* ===== HEADER ===== */
@@ -87,7 +88,7 @@
     }
     .btn-record-header:hover { background: #ffd6e7; transform: scale(1.05); }
     .btn-record-header svg { display: block; }
-    .btn-record-header span { font-size: 10px; color: #d63b75; font-weight: 600; letter-spacing: 0.04em; }
+    .btn-record-header span { font-size: 11px; color: #d63b75; font-weight: 600; letter-spacing: 0.04em; }
 
     /* 街並み帯 */
     .cityscape {
@@ -149,12 +150,13 @@
     .tl-card-photo { width: 100%; max-height: 180px; object-fit: cover; display: block; }
     .tl-card-body { padding: 12px 14px; }
     .tl-card-meta { display: flex; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
-    .tl-meta-item { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-sub); }
+    .tl-meta-item { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-sub); }
     .tl-meta-item svg { flex-shrink: 0; }
-    .tl-card-memo { font-size: 13px; color: var(--navy); line-height: 1.6; margin-bottom: 4px; }
-    .tl-card-url a { font-size: 12px; color: var(--mint); text-decoration: none; word-break: break-all; }
+    .tl-card-memo { font-size: 14.5px; color: var(--navy); line-height: 1.65; margin-bottom: 4px; }
+    .tl-card-url a { font-size: 13px; color: var(--mint); text-decoration: none; word-break: break-all; }
     .tl-card-url a:hover { text-decoration: underline; }
-    .photo-analysis-text { font-size: 11px; color: var(--text-sub); opacity: 0.65; line-height: 1.55; padding: 4px 0 2px; font-style: italic; letter-spacing: 0.01em; }
+    /* photoAnalysis.description はFuture Me/好きの棚の裏側処理でのみ使用し、画面には表示しない */
+    .photo-analysis-text { display: none; }
 
     /* Future Me コメント */
     .future-me-box {
@@ -188,7 +190,7 @@
       letter-spacing: 0.1em;
       margin-bottom: 4px;
     }
-    .future-me-text { font-size: 13px; color: var(--navy); line-height: 1.7; }
+    .future-me-text { font-size: 14.5px; color: var(--navy); line-height: 1.7; }
 
     /* ===== あれなんだっけバナー ===== */
     .arenandakke-banner {
@@ -214,7 +216,7 @@
       border: 2px solid var(--border);
     }
     .arenandakke-text h3 { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 2px; }
-    .arenandakke-text p { font-size: 12px; color: var(--text-sub); line-height: 1.5; }
+    .arenandakke-text p { font-size: 13px; color: var(--text-sub); line-height: 1.5; }
     .arenandakke-open {
       margin-left: auto;
       font-size: 11px;
@@ -237,7 +239,7 @@
     .record-header h2 { font-size: 18px; font-weight: 700; color: var(--navy); }
     .record-body { padding: 20px; flex: 1; }
     .form-group { margin-bottom: 18px; }
-    .form-label { font-size: 12px; font-weight: 700; color: var(--text-sub); letter-spacing: 0.1em; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .form-label { font-size: 13px; font-weight: 700; color: var(--text-sub); letter-spacing: 0.1em; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
     .form-input {
       width: 100%;
       border: 1.5px solid var(--border);
@@ -263,7 +265,7 @@
       border-radius: 10px;
       padding: 14px;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 14px;
       color: var(--text-sub);
       background: var(--card);
       transition: border-color 0.2s;
@@ -276,7 +278,7 @@
       background: #fff8e6;
       border: 1.5px solid #f5c842;
       border-radius: 8px;
-      font-size: 12px;
+      font-size: 13px;
       color: #7a5800;
       line-height: 1.6;
       display: none;
@@ -285,7 +287,7 @@
     .save-error {
       text-align: center;
       color: #d93b3b;
-      font-size: 13px;
+      font-size: 14px;
       margin-top: 10px;
       opacity: 0;
       transition: opacity 0.4s;
@@ -315,7 +317,7 @@
     .save-success {
       text-align: center;
       color: var(--mint);
-      font-size: 13px;
+      font-size: 14px;
       margin-top: 10px;
       opacity: 0;
       transition: opacity 0.4s;
@@ -331,7 +333,7 @@
     .settings-header h2 { font-size: 18px; font-weight: 700; }
     .settings-body { padding: 20px; }
     .settings-section { margin-bottom: 24px; }
-    .settings-section h3 { font-size: 12px; font-weight: 700; color: var(--text-sub); letter-spacing: 0.1em; margin-bottom: 10px; }
+    .settings-section h3 { font-size: 13px; font-weight: 700; color: var(--text-sub); letter-spacing: 0.1em; margin-bottom: 10px; }
     .settings-btn {
       width: 100%;
       border-radius: 10px;
@@ -350,7 +352,7 @@
     .settings-btn:hover { background: #fff3ea; border-color: var(--pink); }
     .settings-btn.danger { color: #d93b3b; border-color: #f0c0c0; }
     .settings-btn.danger:hover { background: #fff0f0; border-color: #d93b3b; }
-    .settings-desc { font-size: 12px; color: var(--text-sub); line-height: 1.6; margin-top: 12px; }
+    .settings-desc { font-size: 13.5px; color: var(--text-sub); line-height: 1.6; margin-top: 12px; }
 
     /* ===== 下部ナビ ===== */
     nav#bottom-nav {
@@ -360,14 +362,14 @@
       transform: translateX(-50%);
       width: 100%;
       max-width: 430px;
-      height: var(--nav-h);
+      height: calc(var(--nav-h) + var(--safe-b));
       background: #fdf6ee;
       border-top: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-around;
       z-index: 100;
-      padding: 0 8px;
+      padding: 0 8px var(--safe-b);
     }
     .nav-item {
       display: flex;
@@ -381,7 +383,7 @@
       -webkit-tap-highlight-color: transparent;
     }
     .nav-item svg { transition: stroke 0.2s; }
-    .nav-item span { font-size: 9.5px; color: var(--navy); opacity: 0.5; transition: color 0.2s, opacity 0.2s; font-weight: 500; }
+    .nav-item span { font-size: 11px; color: var(--navy); opacity: 0.5; transition: color 0.2s, opacity 0.2s; font-weight: 500; }
     .nav-item.active span { color: var(--pink); opacity: 1; }
     .nav-item.active svg { stroke: var(--pink) !important; }
     .nav-item-center {
@@ -407,7 +409,7 @@
     }
     .nav-center-btn:hover { background: rgba(255,92,147,0.2); transform: scale(1.05); }
     .nav-center-btn.active-nav { background: rgba(255,92,147,0.25); }
-    .nav-center-label { font-size: 9.5px; color: var(--navy); opacity: 0.5; font-weight: 500; }
+    .nav-center-label { font-size: 11px; color: var(--navy); opacity: 0.5; font-weight: 500; }
     .nav-center-label.active { color: var(--pink); opacity: 1; }
 
     /* あれなんだっけナビアイコン */
@@ -431,7 +433,7 @@
     /* ===== TOAST ===== */
     #toast {
       position: fixed;
-      bottom: calc(var(--nav-h) + 16px);
+      bottom: calc(var(--nav-h) + 16px + var(--safe-b));
       left: 50%;
       transform: translateX(-50%) translateY(20px);
       background: var(--navy);
@@ -466,15 +468,16 @@
       background: none;
       border: none;
       cursor: pointer;
-      font-size: 11px;
+      font-size: 12.5px;
       font-family: 'Noto Sans JP', sans-serif;
       color: var(--text-sub);
       letter-spacing: 0.03em;
-      padding: 2px 0;
+      padding: 8px 4px;
       opacity: 0.7;
       transition: opacity 0.2s, color 0.2s;
     }
     .btn-memory-toggle:hover { opacity: 1; color: var(--navy); }
+    .btn-memory-toggle:active { opacity: 1; color: var(--pink); }
 
     /* ===== メモリーアコーディオン ===== */
     .memory-panel {
@@ -516,8 +519,8 @@
     .btn-organize-memory {
       background: none;
       border: none;
-      padding: 0;
-      font-size: 11px;
+      padding: 8px 4px;
+      font-size: 12.5px;
       font-family: 'Noto Sans JP', sans-serif;
       color: var(--text-sub);
       cursor: pointer;
@@ -527,12 +530,13 @@
       transition: opacity 0.2s, color 0.2s;
     }
     .btn-organize-memory:hover { opacity: 1; color: var(--navy); }
+    .btn-organize-memory:active { opacity: 1; color: var(--pink); }
     .btn-organize-memory:disabled { opacity: 0.3; cursor: not-allowed; }
 
     /* ===== フィードバックUI ===== */
     .fm-feedback-row {
       display: flex;
-      gap: 10px;
+      gap: 4px;
       margin-top: 8px;
       flex-wrap: wrap;
     }
@@ -540,8 +544,8 @@
     .fm-feedback-btn {
       background: none;
       border: none;
-      padding: 0;
-      font-size: 12px;
+      padding: 8px 4px;
+      font-size: 13px;
       font-family: 'Noto Sans JP', sans-serif;
       color: var(--text-sub);
       cursor: pointer;
@@ -550,6 +554,7 @@
       letter-spacing: 0.02em;
     }
     .fm-feedback-btn:hover { opacity: 1; color: var(--navy); }
+    .fm-feedback-btn:active { opacity: 1; }
     .fm-feedback-btn.selected-good { color: #5dcc8a; opacity: 1; }
     .fm-feedback-btn.selected-miss { color: #f0b429; opacity: 1; }
     .fm-miss-reasons {
@@ -581,15 +586,16 @@
       width: 100%;
       background: none;
       border: none;
-      font-size: 11px;
+      font-size: 12.5px;
       color: var(--text-sub);
       cursor: pointer;
       text-align: left;
-      padding: 2px 0;
+      padding: 8px 4px;
       text-decoration: underline;
       font-family: 'Noto Sans JP', sans-serif;
     }
     .fm-reason-submit:hover { color: var(--navy); }
+    .fm-reason-submit:active { color: var(--pink); }
     .fm-feedback-done {
       font-size: 11px;
       color: var(--text-sub);
@@ -624,7 +630,7 @@
       margin-bottom: 10px;
     }
     .shelf-title {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
       color: var(--navy);
       opacity: 0.8;
@@ -643,7 +649,7 @@
       display: flex;
       align-items: baseline;
       justify-content: space-between;
-      padding: 2px 6px;
+      padding: 7px 6px;
       border-radius: 6px;
       cursor: pointer;
       transition: background 0.15s;
@@ -653,13 +659,13 @@
     .book-item:hover { background: rgba(255,92,147,0.06); }
     .book-item:active { background: rgba(255,92,147,0.12); }
     .book-title {
-      font-size: 13px;
+      font-size: 14px;
       color: var(--text-sub);
       font-weight: 400;
       letter-spacing: 0.01em;
     }
     .book-count {
-      font-size: 13px;
+      font-size: 14px;
       color: var(--text-sub);
       font-weight: 400;
       margin-left: 12px;
@@ -668,7 +674,7 @@
 
     /* ===== あのころ（時間軸ナビ） ===== */
     .anokoro-year {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
       color: var(--navy);
       margin-bottom: 8px;
@@ -686,15 +692,16 @@
       padding: 0 4px;
     }
     .anokoro-month {
-      font-size: 13px;
+      font-size: 14px;
       color: #d1cbc3;
-      width: 26px;
-      height: 26px;
+      width: 36px;
+      height: 36px;
       display: flex;
       align-items: center;
       justify-content: center;
       border-radius: 50%;
       cursor: default;
+      transition: background 0.15s, transform 0.1s;
     }
     .anokoro-month.has-record {
       color: var(--pink);
@@ -702,6 +709,10 @@
       border: 1px solid var(--pink);
       cursor: pointer;
       font-weight: 600;
+    }
+    .anokoro-month.has-record:active {
+      background: rgba(255,92,147,0.15);
+      transform: scale(0.94);
     }
 
     /* 棚区切り */
@@ -714,8 +725,8 @@
     .btn-reorganize-shelf {
       background: none;
       border: none;
-      padding: 0;
-      font-size: 11px;
+      padding: 9px 8px;
+      font-size: 12.5px;
       font-family: 'Noto Sans JP', sans-serif;
       color: var(--text-sub);
       cursor: pointer;
@@ -725,9 +736,10 @@
       transition: opacity 0.2s, color 0.2s;
       letter-spacing: 0.03em;
       display: block;
-      margin: 6px 0 2px auto;
+      margin: 2px -8px 2px auto;
     }
     .btn-reorganize-shelf:hover  { opacity: 1; color: var(--navy); }
+    .btn-reorganize-shelf:active { opacity: 1; color: var(--pink); }
     .btn-reorganize-shelf:disabled { opacity: 0.25; cursor: not-allowed; }
     /* 再整理後の更新日時表示 */
     .shelf-relations-updated {
@@ -748,8 +760,9 @@
     .shelf-book-back {
       background: none;
       border: none;
-      padding: 0;
-      font-size: 12px;
+      padding: 8px 6px;
+      margin-left: -6px;
+      font-size: 13px;
       font-family: 'Noto Sans JP', sans-serif;
       color: #b0a89e;
       cursor: pointer;
@@ -762,9 +775,10 @@
       -webkit-tap-highlight-color: transparent;
     }
     .shelf-book-back:hover { color: #8a8078; }
+    .shelf-book-back:active { color: var(--pink); }
     /* 上位棚（人生テーマ）ラベル */
     .shelf-book-parent {
-      font-size: 11px;
+      font-size: 12px;
       color: var(--text-sub);
       opacity: 0.7;
       letter-spacing: 0.04em;
@@ -778,7 +792,7 @@
     }
     /* 件数バッジ */
     .shelf-book-count {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-sub);
       font-weight: 400;
       margin-top: 4px;
@@ -787,14 +801,14 @@
       text-align: center;
       padding: 52px 32px 48px;
       color: var(--text-sub);
-      font-size: 13px;
+      font-size: 14px;
       line-height: 2;
     }
     .shelf-book-empty svg { opacity: 0.3; margin-bottom: 16px; }
 
     /* ===== 場所表示 ===== */
     .tl-card-location {
-      font-size: 12px;
+      font-size: 13.5px;
       color: var(--text-sub);
       margin-top: 4px;
     }
@@ -975,7 +989,7 @@
       border-top: 1px solid rgba(0,0,0,0.07);
     }
     .fm-question-text {
-      font-size: 13px;
+      font-size: 14.5px;
       color: var(--navy);
       line-height: 1.6;
       margin-bottom: 8px;
@@ -985,7 +999,7 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 8px 10px;
-      font-size: 13px;
+      font-size: 14px;
       font-family: 'Noto Sans JP', sans-serif;
       background: rgba(255,255,255,0.8);
       color: var(--navy);
@@ -1000,25 +1014,27 @@
       background: none;
       border: 1px solid rgba(255,92,147,0.5);
       border-radius: 16px;
-      padding: 4px 14px;
-      font-size: 12px;
+      padding: 7px 16px;
+      font-size: 13px;
       font-family: 'Noto Sans JP', sans-serif;
       color: var(--pink);
       cursor: pointer;
       transition: background 0.2s;
     }
     .fm-answer-submit:hover { background: rgba(255,92,147,0.08); }
+    .fm-answer-submit:active { background: rgba(255,92,147,0.16); }
 
     /* ===== 会話ありバッジ ===== */
     .fm-conversation-badge {
       display: block;
-      font-size: 11px;
+      font-size: 12.5px;
       color: var(--text-sub);
       margin-top: 8px;
       cursor: pointer;
       background: none;
       border: none;
-      padding: 0;
+      padding: 8px 4px;
+      margin-left: -4px;
       font-family: 'Noto Sans JP', sans-serif;
       text-align: left;
       opacity: 0.75;
@@ -1026,12 +1042,13 @@
       letter-spacing: 0.02em;
     }
     .fm-conversation-badge:hover { opacity: 1; }
+    .fm-conversation-badge:active { opacity: 1; }
 
     /* ===== 会話詳細（展開） ===== */
     .fm-conversation-detail {
       display: none;
       margin-top: 8px;
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-sub);
       background: rgba(255,255,255,0.6);
       border: 1px solid var(--border);
@@ -1046,12 +1063,12 @@
     .tag-chip {
       display: inline-flex;
       align-items: center;
-      font-size: 11px;
+      font-size: 12.5px;
       color: var(--text-sub);
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 20px;
-      padding: 3px 9px;
+      padding: 6px 11px;
       cursor: pointer;
       user-select: none;
       font-family: 'Noto Sans JP', sans-serif;
@@ -1060,6 +1077,7 @@
       white-space: nowrap;
     }
     .tag-chip:hover { border-color: var(--pink); }
+    .tag-chip:active { background: #ffeef4; }
     .tag-chip.selected { background: #ffeef4; border-color: var(--pink); color: var(--pink); font-weight: 600; }
 
     .tag-chips-row {
@@ -1072,17 +1090,18 @@
       display: inline-flex;
       align-items: center;
       gap: 3px;
-      font-size: 11px;
+      font-size: 12.5px;
       color: var(--text-sub);
       background: none;
       border: 1px dashed var(--border);
       border-radius: 20px;
-      padding: 3px 9px;
+      padding: 6px 11px;
       cursor: pointer;
       font-family: 'Noto Sans JP', sans-serif;
       transition: border-color 0.15s, color 0.15s;
     }
     .tag-add-btn:hover { border-color: var(--pink); color: var(--pink); }
+    .tag-add-btn:active { border-color: var(--pink); color: var(--pink); }
 
     /* タイムラインカード内タグ */
     .tl-card-tags {
@@ -1092,12 +1111,12 @@
       margin-top: 4px;
     }
     .tl-tag {
-      font-size: 10px;
+      font-size: 11.5px;
       color: var(--text-sub);
       background: none;
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 1px 7px;
+      padding: 2px 8px;
     }
 
     /* ===== タグ絞り込みバー ===== */
@@ -1114,12 +1133,12 @@
     .tag-filter-chip {
       display: inline-flex;
       align-items: center;
-      font-size: 11px;
+      font-size: 12.5px;
       color: var(--text-sub);
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 20px;
-      padding: 4px 10px;
+      padding: 7px 12px;
       cursor: pointer;
       white-space: nowrap;
       user-select: none;
@@ -1128,6 +1147,7 @@
       flex-shrink: 0;
     }
     .tag-filter-chip:hover { border-color: var(--pink); }
+    .tag-filter-chip:active { background: #ffeef4; }
     .tag-filter-chip.active { background: #ffeef4; border-color: var(--pink); color: var(--pink); font-weight: 600; }
 
     /* ===== 新オンボーディング ===== */
@@ -1243,7 +1263,7 @@
     <!-- TIMELINE LABEL + トグル -->
     <div class="section-label-row">
       <span class="section-label">タイムライン</span>
-      <div style="display: flex; gap: 20px;">
+      <div style="display: flex; gap: 12px;">
         <button class="btn-memory-toggle" id="btn-shelf-toggle" onclick="toggleShelfPanel()">
           好きの棚 ▼
         </button>
@@ -1456,7 +1476,7 @@
       <p class="ob-intro-p">日本では、65歳以上の5人に1人が<br/>認知症になると言われています。</p>
       <p class="ob-intro-p">私はAIと認知症について考える中で、<br/>「自分らしさを未来へ残す方法」<br/>を考え始めました。</p>
       <p class="ob-intro-p">好きなこと。<br/>夢中になっていること。<br/>大切にしている人や場所。</p>
-      <p class="ob-intro-p">いまここ手帳は、<br/>そんな記録を積み重ねながら、<br/>未来の自分とつながるための場所です。</p>
+      <p class="ob-intro-p">そんな記録を積み重ねることで、<br/>未来の自分に寄り添うAIを<br/>育てていけたらと思っています。<br/><br/>いまここ手帳は、<br/>未来の自分とつながるための場所です。</p>
       <div class="ob-qa-wrap">
         <p class="ob-first-question">最近、心が動いたことはありますか？</p>
         <textarea
