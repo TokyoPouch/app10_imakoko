@@ -147,7 +147,8 @@
       overflow: hidden;
       box-shadow: 0 2px 8px rgba(16,36,63,0.06);
     }
-    .tl-card-photo { width: 100%; max-height: 180px; object-fit: cover; display: block; }
+    /* 縦横判定は行わず、全写真に一律で顔・被写体が残りやすいtop寄りcropを適用 */
+    .tl-card-photo { width: 100%; max-height: 180px; object-fit: cover; object-position: center top; display: block; }
     .tl-card-body { padding: 12px 14px; }
     .tl-card-meta { display: flex; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
     .tl-meta-item { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-sub); }
@@ -255,7 +256,7 @@
     .form-input:focus { border-color: var(--pink); }
     textarea.form-input { resize: vertical; min-height: 80px; }
     .photo-preview-wrap { margin-top: 8px; }
-    .photo-preview { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; display: none; }
+    .photo-preview { width: 100%; max-height: 200px; object-fit: cover; object-position: center top; border-radius: 8px; display: none; }
     .photo-preview.show { display: block; }
     .photo-label-btn {
       display: flex;
@@ -2240,7 +2241,11 @@ function toggleShelfPanel() {
   const isOpen = panel.classList.toggle('open');
   toggle.textContent = isOpen ? '好きの棚 ▲' : '好きの棚 ▼';
 
-  if (isOpen) renderShelfPanel();
+  if (isOpen) {
+    renderShelfPanel();
+  } else {
+    panel.style.maxHeight = ''; // 閉じるときはCSSのmax-height:0に戻す
+  }
 }
 
 /**
@@ -2306,6 +2311,7 @@ function renderShelfPanel() {
       reorganizeBtn.onclick = reorganizeShelf;
       inner.appendChild(reorganizeBtn);
     }
+    syncShelfPanelHeight();
     return;
   }
 
@@ -2361,6 +2367,21 @@ function renderShelfPanel() {
     const label = `最終整理: ${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
     updatedEl.textContent = label;
     inner.appendChild(updatedEl);
+  }
+
+  syncShelfPanelHeight();
+}
+
+/**
+ * 好きの棚パネルの高さをコンテンツ量に合わせて再計算する。
+ * CSSの固定 max-height（アコーディオン用）だと、テーマ/本の件数が増えた際に
+ * 「棚を再整理」ボタンなど末尾のコンテンツが overflow:hidden で見切れてしまうため、
+ * 開いている間は実際の高さ(scrollHeight)を inline style で反映する。
+ */
+function syncShelfPanelHeight() {
+  const panel = document.getElementById('shelf-panel');
+  if (panel && panel.classList.contains('open')) {
+    panel.style.maxHeight = (panel.scrollHeight + 4) + 'px';
   }
 }
 
