@@ -147,8 +147,24 @@
       overflow: hidden;
       box-shadow: 0 2px 8px rgba(16,36,63,0.06);
     }
-    /* 縦横判定は行わず、全写真に一律で顔・被写体が残りやすいtop寄りcropを適用 */
+    /* STEP3: 縦横判定前の初期状態・判定できない場合のフォールバック表示 */
     .tl-card-photo { width: 100%; max-height: 180px; object-fit: cover; object-position: center top; display: block; }
+    /* STEP3: 縦横自動判定（JSでimg.naturalHeight/Widthを比較してクラス付与） */
+    .tl-card-photo.photo-portrait {
+      width: 90%;
+      aspect-ratio: 3 / 4;
+      max-height: 60vh;
+      object-fit: cover;
+      object-position: center top;
+      margin: 0 auto;
+      display: block;
+    }
+    .tl-card-photo.photo-landscape {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      object-position: center center;
+    }
     .tl-card-body { padding: 12px 14px; }
     .tl-card-meta { display: flex; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
     .tl-meta-item { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-sub); }
@@ -687,16 +703,16 @@
     }
     .anokoro-months {
       display: flex;
-      gap: 6px;
+      gap: 1px;
       flex-wrap: wrap;
       margin-bottom: 12px;
-      padding: 0 4px;
+      padding: 0 2px;
     }
     .anokoro-month {
-      font-size: 14px;
+      font-size: 12px;
       color: #d1cbc3;
-      width: 36px;
-      height: 36px;
+      width: 26px;
+      height: 26px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -2502,6 +2518,26 @@ function isRecordRelatedToBook(record, book) {
  *
  * @param {object} book - 本データ { id, title, keywords, parentTitle? }
  */
+// ============================================================
+// STEP3: 写真の縦横自動判定
+// ============================================================
+function applyPhotoOrientationClass(img) {
+  if (img.classList.contains('photo-portrait') || img.classList.contains('photo-landscape')) return;
+  if (!img.naturalWidth || !img.naturalHeight) return;
+  img.classList.add(img.naturalHeight > img.naturalWidth ? 'photo-portrait' : 'photo-landscape');
+}
+
+function applyPhotoOrientationClasses(root) {
+  const imgs = (root || document).querySelectorAll('img.tl-card-photo');
+  imgs.forEach(img => {
+    if (img.complete) {
+      applyPhotoOrientationClass(img);
+    } else {
+      img.addEventListener('load', () => applyPhotoOrientationClass(img));
+    }
+  });
+}
+
 function renderShelfBookTimeline(book) {
   if (!book || !book.title) return;
 
@@ -2637,6 +2673,8 @@ function renderShelfBookTimeline(book) {
     `;
     container.appendChild(item);
   });
+
+  applyPhotoOrientationClasses(container);
 }
 
 // ============================================================
@@ -2747,6 +2785,8 @@ function openAnokoroMonth(year, month) {
     `;
     container.appendChild(item);
   });
+
+  applyPhotoOrientationClasses(container);
 
   // 画面遷移
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -3185,6 +3225,8 @@ function renderTimeline() {
     // ローディング中のカードはAPIを非同期呼び出し
     if (isLoading) fetchAndUpdateFutureMe(rec.id);
   });
+
+  applyPhotoOrientationClasses(container);
 }
 
 // ============================================================
@@ -3248,6 +3290,19 @@ async function fetchAndUpdateFutureMe(recordId) {
     if (textEl) textEl.textContent = 'Future Meが考えています…';
   }
 
+  // ── STEP3: 過去の記録（直近5件・現在の記録を除く）を補助情報として渡す ──
+  const recentEntries = allRecords
+    .filter(e => e.id !== recordId)
+    .sort((a, b) => b.id - a.id)
+    .slice(0, 5)
+    .map(e => ({
+      date: e.date || '',
+      memo: e.memo || '',
+      tags: Array.isArray(e.tags) ? e.tags : [],
+      location: e.location || '',
+      photoAnalysis: e.photoAnalysis || null
+    }));
+
   // ── Future Me 生成 ───────────────────────────────────────────
   try {
     const res = await fetch('/api/future-me', {
@@ -3257,6 +3312,7 @@ async function fetchAndUpdateFutureMe(recordId) {
         currentEntry: { date: rec.date, memo: rec.memo, tags: Array.isArray(rec.tags) ? rec.tags : [], url: rec.url, location: rec.location },
         memoryThemes,
         photoAnalysis,
+        recentEntries,
       })
     });
 

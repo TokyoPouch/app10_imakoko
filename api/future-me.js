@@ -8,6 +8,9 @@ import { GoogleGenAI } from '@google/genai';
 // app10_imakoko v6
 // STEP2.1 Future Me文脈理解改善
 // STEP2.2 Geminiモデルフォールバック
+//
+// app11_imakoko v7
+// STEP3 記憶の連続性（recentEntriesを補助情報としてプロンプトに追加）
 // ============================================================
 
 const MODELS_TO_TRY = [
@@ -162,7 +165,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST')   return res.status(405).json({ error: 'Method not allowed' });
 
-  const { currentEntry, memoryThemes = [], photoAnalysis } = req.body || {};
+  const { currentEntry, memoryThemes = [], photoAnalysis, recentEntries = [] } = req.body || {};
 
   if (!currentEntry) {
     return res.status(400).json({ error: 'currentEntry is required' });
@@ -207,6 +210,24 @@ export default async function handler(req, res) {
       : null,
   ].filter(Boolean).join('\n');
 
+  // STEP3: 過去の記録（補助情報・最大5件）。今の記録を優先するため一番下に補助として添える
+  const safeRecent = Array.isArray(recentEntries) ? recentEntries.slice(0, 5) : [];
+  const recentText = safeRecent.length > 0
+    ? '\n\n【過去の記録（参考）】\n'
+      + '※ これはユーザーが過去に残した記録です。\n'
+      + '※ 今の記録と自然につながる場合のみ、さりげなく言及してください。\n'
+      + '※ 無理に関連付けないでください。\n'
+      + safeRecent.map(e => {
+          const parts = [];
+          if (e.date) parts.push(`日付: ${e.date}`);
+          if (e.memo) parts.push(`メモ: ${e.memo}`);
+          if (Array.isArray(e.tags) && e.tags.length > 0) parts.push(`タグ: ${e.tags.join(', ')}`);
+          if (e.location) parts.push(`場所: ${e.location}`);
+          if (e.photoAnalysis && e.photoAnalysis.description) parts.push(`写真: ${e.photoAnalysis.description}`);
+          return parts.length > 0 ? '・' + parts.join(' / ') : null;
+        }).filter(Boolean).join('\n')
+    : '';
+
   // memoryThemes は文字列配列またはオブジェクト配列のどちらでも対応
   const safeMemory = Array.isArray(memoryThemes) ? memoryThemes.slice(0, 20) : [];
   const memoryText = safeMemory.length > 0
@@ -215,7 +236,7 @@ export default async function handler(req, res) {
       ).filter(line => line !== '・').join('\n')
     : '';
 
-  const userPrompt = currentText + memoryText;
+  const userPrompt = currentText + recentText + memoryText;
 
   const systemInstruction = `あなたはFuture Meです。
 ユーザーが積み重ねてきた記録全体から、その人らしい問いかけを返してください。
@@ -245,6 +266,12 @@ export default async function handler(req, res) {
 
 「主情報あり: はい」の場合、commentとquestionは必ずメモ・タグ・場所・URLのどれかを根拠にしてください。
 「主情報あり: はい」の場合、写真の見た目だけに反応してはいけません。
+
+【過去の記録（参考）の扱い】
+・過去の記録は補助情報です。今の記録（メモ・タグ・場所・URL）を必ず優先してください。
+・今の記録と自然につながる場合のみ、commentの中でさりげなく過去の記録に触れてください。
+・無理に関連付けないでください。つながりが薄い場合や過去の記録がない場合は、一切言及しなくてよいです。
+・過去の記録に言及する場合も、文字数などcommentの条件は変わりません。
 
 【禁止】
 ・写真に写る人物の感情を断定しない
